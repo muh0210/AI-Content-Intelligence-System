@@ -245,7 +245,7 @@ def semantic_quality_score(text):
     # Component 3: Richness (spread of embedding space)
     centroid = np.mean(embeddings, axis=0)
     distances = [np.linalg.norm(e - centroid) for e in embeddings]
-    richness = min(100, np.std(distances) * 500)
+    richness = min(100, round(np.std(distances) * 500, 1))
 
     # Weighted ML-enhanced score
     ml_score = (coherence * 0.4) + (diversity * 0.3) + (richness * 0.3)

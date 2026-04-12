@@ -106,10 +106,18 @@ section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0E1117 0
 
 .grammar-fix { background: rgba(124, 77, 255, 0.08); border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.5rem; }
 
-/* Fix file uploader styling */
-[data-testid="stFileUploader"] { background: rgba(26, 29, 41, 0.6); border: 1px dashed rgba(124, 77, 255, 0.25); border-radius: 12px; padding: 1rem; }
-[data-testid="stFileUploader"] label { display: none !important; }
-[data-testid="stFileUploader"] button { background: linear-gradient(135deg, #7C4DFF, #651FFF) !important; color: white !important; border: none !important; border-radius: 8px !important; }
+/* Fix file uploader - completely fix the duplicate label */
+[data-testid="stFileUploader"] { background: rgba(26, 29, 41, 0.6); border: 1px dashed rgba(124, 77, 255, 0.25); border-radius: 12px; padding: 0.8rem; }
+[data-testid="stFileUploader"] > label,
+[data-testid="stFileUploader"] > div > label,
+[data-testid="stWidgetLabel"],
+[data-testid="stFileUploader"] [data-testid="stWidgetLabel"] { display: none !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; position: absolute !important; }
+[data-testid="stFileUploaderDropzone"] { border: 1px dashed rgba(124, 77, 255, 0.3) !important; border-radius: 10px !important; background: rgba(14, 17, 23, 0.5) !important; }
+[data-testid="stFileUploaderDropzone"] button { background: linear-gradient(135deg, #7C4DFF, #651FFF) !important; color: white !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; padding: 0.4rem 1.2rem !important; }
+[data-testid="stFileUploaderDropzone"] button span,
+[data-testid="stFileUploaderDropzone"] button p { font-size: 0 !important; }
+[data-testid="stFileUploaderDropzone"] button::after { content: 'Browse Files'; font-size: 0.875rem !important; }
+[data-testid="stFileUploaderDropzone"] small { color: #9E9E9E !important; }
 
 .coherence-bar { height: 6px; border-radius: 3px; margin: 0.3rem 0; }
 
@@ -266,6 +274,15 @@ with st.sidebar:
 
     st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
+    # Document Upload (moved to sidebar for clean UI)
+    st.markdown("#### 📎 Upload Document")
+    uploaded_file = st.file_uploader(
+        "Document file",
+        type=["pdf", "docx", "txt", "md"],
+    )
+
+    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
+
     # Insights panel
     st.markdown("#### 🔮 Smart Insights")
     insights_placeholder = st.empty()
@@ -283,32 +300,28 @@ st.markdown("""
 
 # ─── Input Section ───────────────────────────────────────────────
 
-col_input, col_upload = st.columns([3, 1])
+col_input, col_title = st.columns([3, 1])
 
 with col_input:
     default_text = sample_texts.get(selected_sample, "")
     user_text = st.text_area("✍️ Paste your content here", value=default_text, height=200, placeholder="Enter or paste your text for analysis...", key="main_text_input")
 
-with col_upload:
-    st.markdown("#### 📎 Upload Document")
-    uploaded_file = st.file_uploader(
-        "Drag and drop or browse",
-        type=["pdf", "docx", "txt", "md"],
-        help="Supports PDF, DOCX, TXT, MD files up to 200MB",
-    )
-    if uploaded_file:
-        try:
-            from utils.extractor import extract_text
-            extracted = extract_text(uploaded_file)
-            if extracted and not extracted.startswith("[Error"):
-                user_text = extracted
-                st.success(f"✅ Extracted from {uploaded_file.name}")
-            else:
-                st.error(f"❌ {extracted}")
-        except Exception as e:
-            st.error(f"❌ {e}")
-
+with col_title:
     content_title = st.text_input("📌 Content Title (for SEO)", placeholder="Your headline...")
+    st.markdown('<p style="color:#9E9E9E;font-size:0.75rem;">Optional — used for headline analysis</p>', unsafe_allow_html=True)
+
+# Handle uploaded document
+if uploaded_file:
+    try:
+        from utils.extractor import extract_text
+        extracted = extract_text(uploaded_file)
+        if extracted and not extracted.startswith("[Error"):
+            user_text = extracted
+            st.success(f"✅ Extracted text from **{uploaded_file.name}**")
+        else:
+            st.error(f"❌ {extracted}")
+    except Exception as e:
+        st.error(f"❌ Extraction error: {e}")
 
 
 # ─── Analyze Button ──────────────────────────────────────────────
