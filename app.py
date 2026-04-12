@@ -630,7 +630,7 @@ with tab4:
         if internal["similar_pairs"]:
             st.markdown("### ⚠️ Flagged Similar Sentences")
             for pair in internal["similar_pairs"][:5]:
-                with st.expander(f"🔗 {pair['similarity']}% — Sentences {pair['index_a']} & {pair['index_b']}"):
+                with st.expander(f"Similarity {pair['similarity']}% -- Sentences {pair['index_a']} and {pair['index_b']}"):
                     c1, c2 = st.columns(2)
                     with c1: st.markdown(f"**Sentence {pair['index_a']}:** {pair['sentence_a']}")
                     with c2: st.markdown(f"**Sentence {pair['index_b']}:** {pair['sentence_b']}")
