@@ -55,6 +55,45 @@ st.markdown("""
 #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
 .main .block-container { padding: 1.5rem 2rem 2rem 2rem; max-width: 1400px; }
 
+/* Fix: Hide sidebar collapse icon text leak (Material Icons ligature) */
+[data-testid="collapsedControl"] span,
+button[kind="headerNoPadding"] span,
+.css-1rs6os span[data-testid],
+section[data-testid="stSidebar"] > div:first-child > button span {
+    font-size: 0 !important;
+    overflow: hidden !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] span {
+    font-size: 0 !important;
+}
+/* Sidebar collapse button icon fix */
+[data-testid="stSidebarCollapseButton"] button span,
+[data-testid="baseButton-headerNoPadding"] span {
+    font-size: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    overflow: hidden !important;
+}
+
+/* Fix: Style the download button to be clickable and prominent */
+.stDownloadButton > button {
+    background: linear-gradient(135deg, #7C4DFF, #651FFF) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.8rem 1.8rem !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    min-height: 48px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3) !important;
+}
+.stDownloadButton > button:hover {
+    box-shadow: 0 6px 25px rgba(124, 77, 255, 0.5) !important;
+    transform: translateY(-2px) !important;
+}
+
 .glass-card {
     background: rgba(26, 29, 41, 0.7); backdrop-filter: blur(20px);
     border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 16px;
@@ -456,6 +495,42 @@ with tab1:
     with s2: st.metric("Avg Word Length", f"{text_stats['avg_word_length']} chars")
     with s3: st.metric("Avg Sentence", f"{text_stats['avg_sentence_length']} words")
     with s4: st.metric("Reading Time", f"{text_stats['reading_time_min']} min")
+
+    # Certificate Download (inside Dashboard tab)
+    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
+    st.markdown("### 📜 Content Readiness Certificate")
+    if HAS_FPDF:
+        try:
+            plag_risk = plag_report["internal"]["risk_level"]
+            ai_det_label = plag_report.get("ai_detection", {}).get("label", "N/A")
+        except (NameError, KeyError):
+            plag_risk = "Not checked"
+            ai_det_label = "Not checked"
+
+        cert_data = {
+            "title": content_title if content_title else "Untitled Content",
+            "scores": scores,
+            "word_count": text_stats["words"],
+            "tone": tone_report["tone"]["tone"],
+            "readability_label": readability_report["interpretation"]["label"],
+            "plagiarism_risk": plag_risk,
+            "ai_detection": ai_det_label,
+            "seo_intent": seo_report.get("search_intent", {}).get("primary_intent", "N/A"),
+            "conversion_score": None,
+        }
+        pdf_bytes = generate_certificate(cert_data)
+        if pdf_bytes:
+            st.download_button(
+                label="📜 Download Content Readiness Certificate (PDF)",
+                data=pdf_bytes,
+                file_name="content_readiness_certificate.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            st.info("Certificate generation encountered an issue.")
+    else:
+        st.info("📦 Install `fpdf2` to enable PDF certificate generation.")
 
 
 # ═══════════════ TAB 2: SEO ═════════════════════════════════════
@@ -952,7 +1027,11 @@ with tab10:
 
     topic_input = st.text_input("Enter your topic or keyword", placeholder="e.g., Machine Learning for Healthcare", key="predict_topic")
 
-    if topic_input and st.button("🔮 Predict Content Strategy", use_container_width=True, key="predict_btn"):
+    predict_clicked = st.button("🔮 Predict Content Strategy", use_container_width=True, key="predict_btn")
+
+    if predict_clicked and not topic_input:
+        st.warning("⚠️ Please enter a topic or keyword first.")
+    elif predict_clicked and topic_input:
         with st.spinner("🔮 Analyzing topic..."):
             prediction = get_prediction_report(topic_input)
 
@@ -989,47 +1068,6 @@ with tab10:
 
         for tip in structure.get("tips", []):
             st.markdown(f'<div class="insight-tip">📝 {tip}</div>', unsafe_allow_html=True)
-
-
-# ═══════════════ CERTIFICATE DOWNLOAD ═════════════════════════════
-
-if "analysis_done" in st.session_state:
-    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-    st.markdown("### 📜 Content Readiness Certificate")
-
-    if HAS_FPDF:
-        try:
-            plag_risk = plag_report["internal"]["risk_level"]
-            ai_det_label = plag_report.get("ai_detection", {}).get("label", "N/A")
-        except (NameError, KeyError):
-            plag_risk = "Not checked"
-            ai_det_label = "Not checked"
-
-        cert_data = {
-            "title": content_title if content_title else "Untitled Content",
-            "scores": scores,
-            "word_count": text_stats["words"],
-            "tone": tone_report["tone"]["tone"],
-            "readability_label": readability_report["interpretation"]["label"],
-            "plagiarism_risk": plag_risk,
-            "ai_detection": ai_det_label,
-            "seo_intent": seo_report.get("search_intent", {}).get("primary_intent", "N/A"),
-            "conversion_score": None,
-        }
-        pdf_bytes = generate_certificate(cert_data)
-        if pdf_bytes:
-            st.download_button(
-                label="📜 Download Certificate PDF",
-                data=pdf_bytes,
-                file_name="content_readiness_certificate.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-            )
-        else:
-            st.info("Certificate generation requires fpdf2 library.")
-    else:
-        st.info("Install `fpdf2` to enable PDF certificate generation.")
-
 
 # ─── Footer ──────────────────────────────────────────────────────
 
