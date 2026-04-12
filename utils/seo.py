@@ -283,9 +283,87 @@ def content_seo_suggestions(text, keywords):
     return suggestions
 
 
+def detect_search_intent(text):
+    """
+    Detect the search intent of the content.
+    Categories: Informational, Transactional, Navigational, Commercial.
+    """
+    text_lower = text.lower()
+
+    intent_signals = {
+        "informational": {
+            "keywords": [
+                "what is", "how to", "why", "guide", "tutorial",
+                "explain", "definition", "overview", "introduction",
+                "learn", "understand", "meaning", "example", "tips",
+                "history", "research", "study", "analysis", "review",
+            ],
+            "score": 0,
+            "emoji": "📚",
+            "description": "Content that educates or informs",
+        },
+        "transactional": {
+            "keywords": [
+                "buy", "price", "discount", "deal", "order",
+                "purchase", "subscribe", "sign up", "download",
+                "free trial", "coupon", "sale", "offer", "checkout",
+                "shipping", "cart", "payment",
+            ],
+            "score": 0,
+            "emoji": "🛒",
+            "description": "Content aimed at driving purchases or actions",
+        },
+        "navigational": {
+            "keywords": [
+                "login", "sign in", "official", "website",
+                "homepage", "contact", "about us", "support",
+                "documentation", "dashboard", "account", "portal",
+            ],
+            "score": 0,
+            "emoji": "🧭",
+            "description": "Content directing users to specific pages",
+        },
+        "commercial": {
+            "keywords": [
+                "best", "top", "review", "comparison", "versus",
+                "alternative", "recommended", "rating", "pros and cons",
+                "benchmark", "features", "specifications", "vs",
+            ],
+            "score": 0,
+            "emoji": "💼",
+            "description": "Content comparing or evaluating products/services",
+        },
+    }
+
+    for intent, data in intent_signals.items():
+        for kw in data["keywords"]:
+            if kw in text_lower:
+                data["score"] += 1
+
+    # Determine primary intent
+    sorted_intents = sorted(intent_signals.items(), key=lambda x: x[1]["score"], reverse=True)
+    primary = sorted_intents[0]
+    secondary = sorted_intents[1] if sorted_intents[1][1]["score"] > 0 else None
+
+    return {
+        "primary": {
+            "intent": primary[0].title(),
+            "confidence": min(100, primary[1]["score"] * 15),
+            "emoji": primary[1]["emoji"],
+            "description": primary[1]["description"],
+        },
+        "secondary": {
+            "intent": secondary[0].title(),
+            "confidence": min(100, secondary[1]["score"] * 15),
+            "emoji": secondary[1]["emoji"],
+        } if secondary else None,
+        "all_scores": {k: v["score"] for k, v in intent_signals.items()},
+    }
+
+
 def get_seo_report(text, title=""):
     """
-    Generate comprehensive SEO analysis report with TF-IDF.
+    Generate comprehensive SEO analysis report with TF-IDF and search intent.
     """
     keywords = keyword_density(text)
     bigrams = extract_bigrams(text)
@@ -293,6 +371,7 @@ def get_seo_report(text, title=""):
     tfidf = tfidf_keywords(text)
     clusters = topic_clusters(text)
     seo_suggestions = content_seo_suggestions(text, keywords)
+    search_intent = detect_search_intent(text)
 
     all_words = tokenize(text)
     unique = set(all_words)
@@ -304,6 +383,7 @@ def get_seo_report(text, title=""):
         "tfidf_keywords": tfidf,
         "topic_clusters": clusters,
         "seo_suggestions": seo_suggestions,
+        "search_intent": search_intent,
         "total_words": len(all_words),
         "unique_words": len(unique),
         "vocabulary_richness": round(len(unique) / max(1, len(all_words)) * 100, 1),

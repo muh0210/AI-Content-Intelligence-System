@@ -1,7 +1,7 @@
 """
-AI Content Intelligence System — Premium Streamlit Application (V2 — Upgraded)
-Production-grade content analysis, scoring, and rewriting platform.
-Features: caching, diff view, dynamic weights, goal-based optimization, TF-IDF, grammar correction.
+AI Content Intelligence System — Premium Streamlit Application (V3 — Elite)
+Production-grade AI-powered content analysis, scoring, and rewriting platform.
+Features: embeddings, ML scoring, semantic coherence, search intent, grammar correction, diff view.
 """
 
 import streamlit as st
@@ -22,6 +22,15 @@ from utils.seo import get_seo_report
 from utils.rewrite import rule_based_rewrite, ai_rewrite, thesis_helper, grammar_check
 from utils.plagiarism import get_plagiarism_report
 from utils.insights import generate_insights
+
+# V3: Embeddings (lazy-loaded, optional)
+try:
+    from utils.embeddings import get_semantic_report, is_available as embeddings_available
+    HAS_EMBEDDINGS = True
+except ImportError:
+    HAS_EMBEDDINGS = False
+    def embeddings_available(): return False
+    def get_semantic_report(text): return {"available": False}
 
 # ─── Page Configuration ─────────────────────────────────────────
 st.set_page_config(
@@ -97,6 +106,13 @@ section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0E1117 0
 
 .grammar-fix { background: rgba(124, 77, 255, 0.08); border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.5rem; }
 
+/* Fix file uploader styling */
+[data-testid="stFileUploader"] { background: rgba(26, 29, 41, 0.6); border: 1px dashed rgba(124, 77, 255, 0.25); border-radius: 12px; padding: 1rem; }
+[data-testid="stFileUploader"] label { display: none !important; }
+[data-testid="stFileUploader"] button { background: linear-gradient(135deg, #7C4DFF, #651FFF) !important; color: white !important; border: none !important; border-radius: 8px !important; }
+
+.coherence-bar { height: 6px; border-radius: 3px; margin: 0.3rem 0; }
+
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 """, unsafe_allow_html=True)
@@ -119,6 +135,10 @@ def cached_tone(text):
 @st.cache_data(show_spinner=False)
 def cached_seo(text, title):
     return get_seo_report(text, title=title)
+
+@st.cache_resource(show_spinner=False)
+def cached_semantic(text):
+    return get_semantic_report(text)
 
 
 # ─── Helper Functions ────────────────────────────────────────────
@@ -271,7 +291,11 @@ with col_input:
 
 with col_upload:
     st.markdown("#### 📎 Upload Document")
-    uploaded_file = st.file_uploader("Upload file", type=["pdf", "docx", "txt", "md"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader(
+        "Drag and drop or browse",
+        type=["pdf", "docx", "txt", "md"],
+        help="Supports PDF, DOCX, TXT, MD files up to 200MB",
+    )
     if uploaded_file:
         try:
             from utils.extractor import extract_text
@@ -354,7 +378,7 @@ with insights_placeholder.container():
 
 # ─── Main Tabs ───────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🔍 SEO Analysis", "🧠 AI Rewrite", "🚨 Plagiarism", "🎓 Thesis Helper"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 SEO Analysis", "🧠 AI Rewrite", "🚨 Plagiarism", "🎓 Thesis Helper", "🤖 AI Intelligence"])
 
 
 # ═══════════════ TAB 1: DASHBOARD ═══════════════════════════════
@@ -425,7 +449,22 @@ with tab2:
             for sug in hl.get("suggestions", []):
                 st.info(f"💡 {sug}")
 
-    # TF-IDF Keywords (NEW)
+    # Search Intent (V3 NEW)
+    intent = seo_report.get("search_intent", {})
+    if intent:
+        st.markdown("### 🎯 Search Intent Detection")
+        pi = intent.get("primary", {})
+        ic1, ic2 = st.columns(2)
+        with ic1:
+            st.markdown(f'<div class="metric-card"><p style="font-size:2rem;margin:0;">{pi.get("emoji","📚")}</p><p class="metric-value" style="font-size:1.3rem;color:#B388FF;">{pi.get("intent","Unknown")}</p><p class="metric-label">Primary Intent</p><p style="color:#666;font-size:0.8rem;margin:0;">{pi.get("description","")}</p></div>', unsafe_allow_html=True)
+        with ic2:
+            si = intent.get("secondary")
+            if si:
+                st.markdown(f'<div class="metric-card"><p style="font-size:2rem;margin:0;">{si.get("emoji","📚")}</p><p class="metric-value" style="font-size:1.3rem;color:#9E9E9E;">{si.get("intent","—")}</p><p class="metric-label">Secondary Intent</p></div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="metric-card"><p style="color:#666;margin:0;">No secondary intent detected</p></div>', unsafe_allow_html=True)
+
+    # TF-IDF Keywords
     tfidf = seo_report.get("tfidf_keywords", [])
     if tfidf:
         st.markdown("### 🏆 TF-IDF Important Keywords")
@@ -640,7 +679,72 @@ with tab5:
             st.text_area("AI Academic", value=thesis_result["ai_improved"][:2000], height=200, disabled=True, key="thesis_ai")
 
 
+# ═══════════════ TAB 6: AI INTELLIGENCE ═════════════════════════
+
+with tab6:
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🤖 AI Intelligence Engine</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Semantic embeddings, coherence analysis, topic detection, and ML-enhanced quality scoring powered by sentence-transformers.</p></div>', unsafe_allow_html=True)
+
+    if st.button("🧠 Run AI Analysis", use_container_width=True, key="ai_intel_btn", type="primary"):
+        if not HAS_EMBEDDINGS or not embeddings_available():
+            st.warning("⚠️ sentence-transformers not available. Install with: `pip install sentence-transformers`")
+            st.info("💡 The system will run full AI analysis when the library is installed. On Streamlit Cloud, this requires sufficient memory.")
+        else:
+            with st.spinner("🧠 Running deep AI analysis with sentence embeddings..."):
+                sem_report = get_semantic_report(cleaned)
+
+            if sem_report.get("available"):
+                # ML Quality Score
+                quality = sem_report.get("quality", {})
+                if quality.get("available"):
+                    st.markdown("### 🏆 ML-Enhanced Quality Score")
+                    mq1, mq2, mq3, mq4 = st.columns(4)
+                    with mq1:
+                        st.plotly_chart(create_gauge_chart(quality["score"], "ML Score"), use_container_width=True)
+                    with mq2:
+                        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#7C4DFF;">{quality["coherence"]}</p><p class="metric-label">Coherence</p></div>', unsafe_allow_html=True)
+                    with mq3:
+                        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{quality["diversity"]}</p><p class="metric-label">Diversity</p></div>', unsafe_allow_html=True)
+                    with mq4:
+                        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#00E676;">{quality["richness"]}</p><p class="metric-label">Richness</p></div>', unsafe_allow_html=True)
+
+                # Coherence
+                coh = sem_report.get("coherence", {})
+                if coh.get("available"):
+                    st.markdown("### 🔗 Semantic Coherence")
+                    st.markdown(f'<div class="glass-card"><p class="metric-value" style="font-size:1.5rem;color:{coh.get("color","#B388FF")};">Coherence: {coh["score"]}%</p><p style="color:#9E9E9E;">{coh["label"]}</p><p style="color:#666;font-size:0.85rem;">Based on {coh.get("total_sentences",0)} sentences</p></div>', unsafe_allow_html=True)
+
+                    # Sentence flow chart
+                    sims = coh.get("sentence_similarities", [])
+                    if sims:
+                        pairs = [s["pair"] for s in sims]
+                        vals = [s["similarity"] for s in sims]
+                        colors = ["#00E676" if v >= 50 else "#FFA726" if v >= 30 else "#EF5350" for v in vals]
+                        import plotly.graph_objects as go
+                        fig = go.Figure(go.Bar(x=pairs, y=vals, marker_color=colors))
+                        fig.update_layout(height=200, margin=dict(l=40, r=20, t=10, b=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", yaxis=dict(title="Similarity %", gridcolor="rgba(124,77,255,0.08)"), xaxis=dict(tickfont=dict(size=9, color="#666")))
+                        st.plotly_chart(fig, use_container_width=True)
+
+                    # Weak transitions
+                    weak = coh.get("weak_transitions", [])
+                    if weak:
+                        st.markdown("#### ⚠️ Weakest Transitions")
+                        for w in weak:
+                            st.markdown(f'<div class="insight-weakness">🔗 {w["pair"]}: {w["similarity"]}% — <em>"{w["sentences"][0][:60]}..."</em> → <em>"{w["sentences"][1][:60]}..."</em></div>', unsafe_allow_html=True)
+
+                # Topics
+                topics = sem_report.get("topics", {})
+                if topics.get("available") and topics.get("topics"):
+                    st.markdown("### 🗂️ AI-Detected Topics")
+                    for t in topics["topics"]:
+                        st.markdown(f'<div class="glass-card"><p style="color:#B388FF;font-weight:700;">Topic {t["id"]}: {" • ".join(t["keywords"][:4])}</p><p style="color:#666;font-size:0.85rem;">📝 {t["sentence_count"]} sentences | Preview: <em>{t["preview"][:100]}...</em></p></div>', unsafe_allow_html=True)
+
+            else:
+                st.error("❌ Embeddings engine not available.")
+    else:
+        st.markdown('<div class="glass-card" style="text-align:center;padding:2rem;"><p style="font-size:3rem;">🤖</p><h3 style="color:#B388FF;">AI Intelligence</h3><p style="color:#666;">Click <b>🧠 Run AI Analysis</b> to perform deep semantic analysis using sentence embeddings.</p><p style="color:#666;font-size:0.85rem;">This analyzes: semantic coherence, topic detection, ML-enhanced quality scoring</p></div>', unsafe_allow_html=True)
+
+
 # ─── Footer ──────────────────────────────────────────────────────
 
 st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-st.markdown(f'<div style="text-align:center;padding:1rem;color:#666;"><p style="margin:0;">🧠 <b>AI Content Intelligence System</b> v{APP_VERSION}</p><p style="margin:0;font-size:0.8rem;">Powered by NLP • Built for Writers, Students & Businesses</p></div>', unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;padding:1rem;color:#666;"><p style="margin:0;">🧠 <b>AI Content Intelligence System</b> v{APP_VERSION}</p><p style="margin:0;font-size:0.8rem;">Powered by NLP + AI Embeddings • Built for Writers, Students & Businesses</p></div>', unsafe_allow_html=True)
