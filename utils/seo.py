@@ -1,6 +1,6 @@
 """
-AI Content Intelligence System — SEO Analysis Module
-Keyword density, top keywords, and headline optimization.
+AI Content Intelligence System — SEO Analysis Module (V2 — Upgraded)
+TF-IDF importance ranking, keyword density, topic clustering, and headline optimization.
 """
 
 import re
@@ -57,6 +57,105 @@ def extract_bigrams(text, top_n=10):
     ]
 
 
+def extract_trigrams(text, top_n=8):
+    """Extract top N three-word phrases (trigrams)."""
+    words = tokenize(text)
+    filtered = [w for w in words if w not in SEO_STOP_WORDS]
+
+    if len(filtered) < 3:
+        return []
+
+    trigrams = [
+        f"{filtered[i]} {filtered[i+1]} {filtered[i+2]}"
+        for i in range(len(filtered) - 2)
+    ]
+    freq = Counter(trigrams)
+
+    return [
+        {"phrase": phrase, "count": count}
+        for phrase, count in freq.most_common(top_n)
+        if count >= 2
+    ]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# TF-IDF Importance Ranking (NEW)
+# ═══════════════════════════════════════════════════════════════════
+
+def tfidf_keywords(text, top_n=15):
+    """
+    Extract keywords ranked by TF-IDF importance.
+    Uses sklearn's TfidfVectorizer for proper weighting.
+    """
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        import numpy as np
+
+        # Split text into sentences as "documents" for TF-IDF
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+        if len(sentences) < 2:
+            sentences = [text[:len(text)//2], text[len(text)//2:]]
+
+        vectorizer = TfidfVectorizer(
+            stop_words="english",
+            max_features=100,
+            ngram_range=(1, 2),
+            min_df=1,
+        )
+        tfidf_matrix = vectorizer.fit_transform(sentences)
+        feature_names = vectorizer.get_feature_names_out()
+
+        # Average TF-IDF scores across all sentences
+        avg_scores = tfidf_matrix.mean(axis=0).A1
+        top_indices = avg_scores.argsort()[-top_n:][::-1]
+
+        results = []
+        for idx in top_indices:
+            if avg_scores[idx] > 0.01:
+                results.append({
+                    "keyword": feature_names[idx],
+                    "tfidf_score": round(float(avg_scores[idx]), 4),
+                    "importance": "high" if avg_scores[idx] > 0.1 else "medium" if avg_scores[idx] > 0.05 else "low",
+                })
+
+        return results
+
+    except ImportError:
+        return []
+    except Exception:
+        return []
+
+
+def topic_clusters(text, n_clusters=3):
+    """
+    Group keywords into topic clusters using simple frequency analysis.
+    """
+    words = tokenize(text)
+    filtered = [w for w in words if w not in SEO_STOP_WORDS and len(w) > 3]
+    freq = Counter(filtered)
+
+    if len(freq) < n_clusters:
+        return [{"topic": i + 1, "keywords": list(freq.keys())} for i in range(1)]
+
+    # Simple clustering: group by frequency tiers
+    sorted_words = freq.most_common()
+    cluster_size = max(1, len(sorted_words) // n_clusters)
+
+    clusters = []
+    for i in range(n_clusters):
+        start = i * cluster_size
+        end = start + cluster_size
+        cluster_words = [w for w, c in sorted_words[start:end]]
+        if cluster_words:
+            clusters.append({
+                "topic": i + 1,
+                "keywords": cluster_words[:8],
+                "label": f"Topic {i + 1}: {', '.join(cluster_words[:3])}",
+            })
+
+    return clusters
+
+
 def analyze_headline(headline):
     """
     Analyze a headline for SEO effectiveness.
@@ -69,7 +168,7 @@ def analyze_headline(headline):
     word_count = len(words)
     char_count = len(headline)
 
-    # Length check (ideal: 6–12 words, 50–60 chars)
+    # Length check
     if 6 <= word_count <= 12:
         score += 15
     elif word_count < 4:
@@ -82,29 +181,34 @@ def analyze_headline(headline):
     if 40 <= char_count <= 65:
         score += 10
     elif char_count > 70:
-        suggestions.append("Keep headline under 65 characters for best display in search results.")
+        suggestions.append("Keep headline under 65 characters for search result display.")
 
     # Power words
     power_words = [
         "ultimate", "essential", "proven", "powerful", "complete",
         "comprehensive", "expert", "advanced", "best", "top",
         "guide", "secrets", "tips", "strategies", "how",
+        "definitive", "critical", "revolutionary", "breakthrough",
     ]
     has_power = any(pw in headline.lower() for pw in power_words)
     if has_power:
         score += 10
     else:
-        suggestions.append("Consider adding a power word (e.g., 'Ultimate', 'Proven', 'Essential').")
+        suggestions.append("Add a power word (e.g., 'Ultimate', 'Proven', 'Essential').")
 
     # Number presence
     if any(char.isdigit() for char in headline):
         score += 10
     else:
-        suggestions.append("Headlines with numbers tend to get more clicks (e.g., '7 Ways to...').")
+        suggestions.append("Headlines with numbers get more clicks (e.g., '7 Ways to...').")
 
-    # Emotional triggers
+    # Emotional words
     emotion_words = ["amazing", "incredible", "shocking", "surprising", "critical", "vital"]
     if any(ew in headline.lower() for ew in emotion_words):
+        score += 5
+
+    # Question format
+    if headline.strip().endswith("?"):
         score += 5
 
     if not suggestions:
@@ -118,25 +222,92 @@ def analyze_headline(headline):
     }
 
 
+def content_seo_suggestions(text, keywords):
+    """Generate actionable SEO improvement suggestions."""
+    suggestions = []
+    word_count = len(tokenize(text))
+
+    # Content length
+    if word_count < 300:
+        suggestions.append({
+            "icon": "📏",
+            "text": f"Content is only {word_count} words. Aim for 1000+ for better SEO.",
+            "priority": "high",
+        })
+    elif word_count < 1000:
+        suggestions.append({
+            "icon": "📏",
+            "text": f"Content is {word_count} words. 1500–2500 is optimal for SEO ranking.",
+            "priority": "medium",
+        })
+    else:
+        suggestions.append({
+            "icon": "✅",
+            "text": f"Good content length ({word_count} words).",
+            "priority": "low",
+        })
+
+    # Keyword density check
+    if keywords:
+        top = keywords[0]
+        if top["density"] > 4:
+            suggestions.append({
+                "icon": "⚠️",
+                "text": f"Keyword '{top['keyword']}' density is {top['density']}% — too high (keyword stuffing risk).",
+                "priority": "high",
+            })
+        elif top["density"] < 0.5:
+            suggestions.append({
+                "icon": "🔑",
+                "text": "No dominant keyword detected. Focus on a primary topic keyword.",
+                "priority": "high",
+            })
+
+    # Heading structure
+    if "#" not in text and word_count > 300:
+        suggestions.append({
+            "icon": "📑",
+            "text": "No headings detected. Add H2/H3 headings to improve structure.",
+            "priority": "medium",
+        })
+
+    # Paragraph variety
+    paragraphs = [p for p in text.split("\n\n") if p.strip()]
+    if len(paragraphs) < 3 and word_count > 200:
+        suggestions.append({
+            "icon": "📝",
+            "text": "Break content into more paragraphs for better readability.",
+            "priority": "medium",
+        })
+
+    return suggestions
+
+
 def get_seo_report(text, title=""):
     """
-    Generate a comprehensive SEO analysis report.
+    Generate comprehensive SEO analysis report with TF-IDF.
     """
     keywords = keyword_density(text)
     bigrams = extract_bigrams(text)
+    trigrams = extract_trigrams(text)
+    tfidf = tfidf_keywords(text)
+    clusters = topic_clusters(text)
+    seo_suggestions = content_seo_suggestions(text, keywords)
+
+    all_words = tokenize(text)
+    unique = set(all_words)
 
     report = {
         "keywords": keywords,
         "bigrams": bigrams,
-        "total_words": len(tokenize(text)),
-        "unique_words": len(set(tokenize(text))),
-        "vocabulary_richness": 0,
+        "trigrams": trigrams,
+        "tfidf_keywords": tfidf,
+        "topic_clusters": clusters,
+        "seo_suggestions": seo_suggestions,
+        "total_words": len(all_words),
+        "unique_words": len(unique),
+        "vocabulary_richness": round(len(unique) / max(1, len(all_words)) * 100, 1),
     }
-
-    if report["total_words"] > 0:
-        report["vocabulary_richness"] = round(
-            report["unique_words"] / report["total_words"] * 100, 1
-        )
 
     if title:
         report["headline_analysis"] = analyze_headline(title)

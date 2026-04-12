@@ -1,6 +1,7 @@
 """
-AI Content Intelligence System — Premium Streamlit Application
+AI Content Intelligence System — Premium Streamlit Application (V2 — Upgraded)
 Production-grade content analysis, scoring, and rewriting platform.
+Features: caching, diff view, dynamic weights, goal-based optimization, TF-IDF, grammar correction.
 """
 
 import streamlit as st
@@ -16,9 +17,9 @@ from config import APP_TITLE, APP_ICON, APP_VERSION, AUDIENCE_PRESETS
 from utils.cleaner import clean_text, get_text_stats
 from utils.readability import get_readability_report
 from utils.tone import get_tone_report
-from utils.scoring import compute_content_score, get_score_label
+from utils.scoring import compute_content_score, get_score_label, get_domain_presets
 from utils.seo import get_seo_report
-from utils.rewrite import rule_based_rewrite, ai_rewrite, thesis_helper
+from utils.rewrite import rule_based_rewrite, ai_rewrite, thesis_helper, grammar_check
 from utils.plagiarism import get_plagiarism_report
 from utils.insights import generate_insights
 
@@ -33,507 +34,219 @@ st.set_page_config(
 # ─── Premium CSS ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Google Fonts ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*, html, body, [class*="st-"] { font-family: 'Inter', sans-serif !important; }
+#MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
+.main .block-container { padding: 1.5rem 2rem 2rem 2rem; max-width: 1400px; }
 
-/* ── Global ── */
-*, html, body, [class*="st-"] {
-    font-family: 'Inter', sans-serif !important;
-}
-
-/* ── Hide Streamlit branding ── */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-
-/* ── Main container ── */
-.main .block-container {
-    padding: 1.5rem 2rem 2rem 2rem;
-    max-width: 1400px;
-}
-
-/* ── Glassmorphism card ── */
 .glass-card {
-    background: rgba(26, 29, 41, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(124, 77, 255, 0.15);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
+    background: rgba(26, 29, 41, 0.7); backdrop-filter: blur(20px);
+    border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 16px;
+    padding: 1.5rem; margin-bottom: 1rem; transition: all 0.3s ease;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
-.glass-card:hover {
-    border-color: rgba(124, 77, 255, 0.35);
-    box-shadow: 0 12px 40px rgba(124, 77, 255, 0.1);
-    transform: translateY(-2px);
-}
+.glass-card:hover { border-color: rgba(124, 77, 255, 0.35); box-shadow: 0 12px 40px rgba(124, 77, 255, 0.1); transform: translateY(-2px); }
 
-/* ── Hero header ── */
 .hero-header {
     background: linear-gradient(135deg, #1a1d29 0%, #0e1117 50%, #1a1035 100%);
-    border: 1px solid rgba(124, 77, 255, 0.2);
-    border-radius: 20px;
-    padding: 2rem 2.5rem;
-    margin-bottom: 1.5rem;
-    position: relative;
-    overflow: hidden;
+    border: 1px solid rgba(124, 77, 255, 0.2); border-radius: 20px;
+    padding: 2rem 2.5rem; margin-bottom: 1.5rem; position: relative; overflow: hidden;
 }
-.hero-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(124, 77, 255, 0.12) 0%, transparent 70%);
-    border-radius: 50%;
-}
-.hero-header::after {
-    content: '';
-    position: absolute;
-    bottom: -30%;
-    left: -10%;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, rgba(0, 230, 118, 0.08) 0%, transparent 70%);
-    border-radius: 50%;
-}
-.hero-title {
-    font-size: 2rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #7C4DFF, #B388FF, #00E676);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin: 0 0 0.3rem 0;
-    position: relative;
-    z-index: 1;
-}
-.hero-subtitle {
-    font-size: 1rem;
-    color: #9E9E9E;
-    font-weight: 400;
-    position: relative;
-    z-index: 1;
-}
+.hero-header::before { content: ''; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(124, 77, 255, 0.12) 0%, transparent 70%); border-radius: 50%; }
+.hero-title { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #7C4DFF, #B388FF, #00E676); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 0.3rem 0; position: relative; z-index: 1; }
+.hero-subtitle { font-size: 1rem; color: #9E9E9E; font-weight: 400; position: relative; z-index: 1; }
 
-/* ── Metric cards ── */
 .metric-card {
     background: linear-gradient(135deg, rgba(26, 29, 41, 0.8), rgba(14, 17, 23, 0.9));
-    border: 1px solid rgba(124, 77, 255, 0.12);
-    border-radius: 14px;
-    padding: 1.2rem;
-    text-align: center;
-    transition: all 0.3s ease;
+    border: 1px solid rgba(124, 77, 255, 0.12); border-radius: 14px;
+    padding: 1.2rem; text-align: center; transition: all 0.3s ease;
 }
-.metric-card:hover {
-    border-color: rgba(124, 77, 255, 0.3);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(124, 77, 255, 0.08);
-}
-.metric-value {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0;
-    line-height: 1.2;
-}
-.metric-label {
-    font-size: 0.8rem;
-    color: #9E9E9E;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 0.3rem;
-}
+.metric-card:hover { border-color: rgba(124, 77, 255, 0.3); transform: translateY(-3px); box-shadow: 0 8px 25px rgba(124, 77, 255, 0.08); }
+.metric-value { font-size: 2.2rem; font-weight: 800; margin: 0; line-height: 1.2; }
+.metric-label { font-size: 0.8rem; color: #9E9E9E; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.3rem; }
 
-/* ── Score gauge colors ── */
-.score-excellent { color: #00E676; }
-.score-good { color: #66BB6A; }
-.score-average { color: #FFA726; }
-.score-below { color: #EF5350; }
-.score-poor { color: #B71C1C; }
+.score-excellent { color: #00E676; } .score-good { color: #66BB6A; }
+.score-average { color: #FFA726; } .score-below { color: #EF5350; } .score-poor { color: #B71C1C; }
 
-/* ── Insight cards ── */
-.insight-strength {
-    background: rgba(0, 230, 118, 0.08);
-    border-left: 3px solid #00E676;
-    padding: 0.8rem 1rem;
-    border-radius: 0 8px 8px 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
-.insight-weakness {
-    background: rgba(239, 83, 80, 0.08);
-    border-left: 3px solid #EF5350;
-    padding: 0.8rem 1rem;
-    border-radius: 0 8px 8px 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
-.insight-tip {
-    background: rgba(255, 167, 38, 0.08);
-    border-left: 3px solid #FFA726;
-    padding: 0.8rem 1rem;
-    border-radius: 0 8px 8px 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-}
+.insight-strength { background: rgba(0, 230, 118, 0.08); border-left: 3px solid #00E676; padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.insight-weakness { background: rgba(239, 83, 80, 0.08); border-left: 3px solid #EF5350; padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.insight-tip { background: rgba(255, 167, 38, 0.08); border-left: 3px solid #FFA726; padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; margin-bottom: 0.5rem; font-size: 0.9rem; }
 
-/* ── Tabs styling ── */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 8px;
-    background: rgba(26, 29, 41, 0.5);
-    border-radius: 12px;
-    padding: 4px;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 8px;
-    padding: 8px 20px;
-    font-weight: 600;
-}
-.stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #7C4DFF, #651FFF) !important;
-}
+.stTabs [data-baseweb="tab-list"] { gap: 8px; background: rgba(26, 29, 41, 0.5); border-radius: 12px; padding: 4px; }
+.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 20px; font-weight: 600; }
+.stTabs [aria-selected="true"] { background: linear-gradient(135deg, #7C4DFF, #651FFF) !important; }
 
-/* ── Buttons ── */
-.stButton > button {
-    background: linear-gradient(135deg, #7C4DFF, #651FFF);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 0.6rem 1.8rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3);
-}
-.stButton > button:hover {
-    box-shadow: 0 6px 25px rgba(124, 77, 255, 0.5);
-    transform: translateY(-2px);
-}
+.stButton > button { background: linear-gradient(135deg, #7C4DFF, #651FFF); color: white; border: none; border-radius: 10px; padding: 0.6rem 1.8rem; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(124, 77, 255, 0.3); }
+.stButton > button:hover { box-shadow: 0 6px 25px rgba(124, 77, 255, 0.5); transform: translateY(-2px); }
 
-/* ── Text area ── */
-.stTextArea textarea {
-    background: rgba(26, 29, 41, 0.8) !important;
-    border: 1px solid rgba(124, 77, 255, 0.2) !important;
-    border-radius: 12px !important;
-    color: #E0E0E0 !important;
-    font-size: 0.95rem !important;
-}
-.stTextArea textarea:focus {
-    border-color: #7C4DFF !important;
-    box-shadow: 0 0 0 2px rgba(124, 77, 255, 0.15) !important;
-}
+.stTextArea textarea { background: rgba(26, 29, 41, 0.8) !important; border: 1px solid rgba(124, 77, 255, 0.2) !important; border-radius: 12px !important; color: #E0E0E0 !important; }
+.stTextArea textarea:focus { border-color: #7C4DFF !important; box-shadow: 0 0 0 2px rgba(124, 77, 255, 0.15) !important; }
 
-/* ── File uploader ── */
-.stFileUploader {
-    border: 2px dashed rgba(124, 77, 255, 0.25) !important;
-    border-radius: 12px !important;
-}
+section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0E1117 0%, #1A1D29 100%); border-right: 1px solid rgba(124, 77, 255, 0.1); }
 
-/* ── Sidebar ── */
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0E1117 0%, #1A1D29 100%);
-    border-right: 1px solid rgba(124, 77, 255, 0.1);
-}
+.diff-added { background: rgba(0, 230, 118, 0.15); color: #00E676; padding: 2px 4px; border-radius: 4px; text-decoration: none; }
+.diff-removed { background: rgba(239, 83, 80, 0.15); color: #EF5350; padding: 2px 4px; border-radius: 4px; text-decoration: line-through; }
 
-/* ── Comparison layout ── */
-.comparison-card {
-    background: rgba(26, 29, 41, 0.6);
-    border: 1px solid rgba(124, 77, 255, 0.1);
-    border-radius: 12px;
-    padding: 1.2rem;
-}
-.comparison-header {
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 0.8rem;
-}
-.original-header { color: #EF5350; }
-.improved-header { color: #00E676; }
-
-/* ── Badge ── */
-.badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
+.badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
 .badge-green { background: rgba(0, 230, 118, 0.15); color: #00E676; }
 .badge-yellow { background: rgba(255, 167, 38, 0.15); color: #FFA726; }
 .badge-red { background: rgba(239, 83, 80, 0.15); color: #EF5350; }
 .badge-purple { background: rgba(124, 77, 255, 0.15); color: #B388FF; }
 
-/* ── Divider ── */
-.custom-divider {
-    border: none;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(124, 77, 255, 0.3), transparent);
-    margin: 1.5rem 0;
-}
+.custom-divider { border: none; height: 1px; background: linear-gradient(90deg, transparent, rgba(124, 77, 255, 0.3), transparent); margin: 1.5rem 0; }
 
-/* ── Animation keyframes ── */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-.animate-in {
-    animation: fadeInUp 0.5s ease forwards;
-}
+.grammar-fix { background: rgba(124, 77, 255, 0.08); border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.5rem; }
+
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ─── Cached Analysis Functions ───────────────────────────────────
+
+@st.cache_data(show_spinner=False)
+def cached_text_stats(text):
+    return get_text_stats(text)
+
+@st.cache_data(show_spinner=False)
+def cached_readability(text):
+    return get_readability_report(text)
+
+@st.cache_data(show_spinner=False)
+def cached_tone(text):
+    return get_tone_report(text)
+
+@st.cache_data(show_spinner=False)
+def cached_seo(text, title):
+    return get_seo_report(text, title=title)
 
 
 # ─── Helper Functions ────────────────────────────────────────────
 
 def create_gauge_chart(value, title, max_val=100):
-    """Create a premium animated gauge chart."""
-    if value >= 70:
-        color = "#00E676"
-    elif value >= 50:
-        color = "#FFA726"
-    else:
-        color = "#EF5350"
-
+    color = "#00E676" if value >= 70 else "#FFA726" if value >= 50 else "#EF5350"
     fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
+        mode="gauge+number", value=value,
         title={"text": title, "font": {"size": 14, "color": "#9E9E9E"}},
-        number={"font": {"size": 42, "color": color, "family": "Inter"}, "suffix": ""},
+        number={"font": {"size": 42, "color": color, "family": "Inter"}},
         gauge={
             "axis": {"range": [0, max_val], "tickwidth": 0, "tickcolor": "rgba(0,0,0,0)", "dtick": 25},
             "bar": {"color": color, "thickness": 0.3},
-            "bgcolor": "rgba(26,29,41,0.5)",
-            "borderwidth": 0,
+            "bgcolor": "rgba(26,29,41,0.5)", "borderwidth": 0,
             "steps": [
                 {"range": [0, 40], "color": "rgba(239,83,80,0.08)"},
                 {"range": [40, 70], "color": "rgba(255,167,38,0.08)"},
                 {"range": [70, 100], "color": "rgba(0,230,118,0.08)"},
             ],
-            "threshold": {
-                "line": {"color": "#B388FF", "width": 2},
-                "thickness": 0.8,
-                "value": value,
-            },
+            "threshold": {"line": {"color": "#B388FF", "width": 2}, "thickness": 0.8, "value": value},
         },
     ))
-    fig.update_layout(
-        height=200,
-        margin=dict(l=20, r=20, t=40, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter"},
-    )
+    fig.update_layout(height=200, margin=dict(l=20, r=20, t=40, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
-
 
 def create_radar_chart(scores):
-    """Create a premium radar chart for content scores."""
     categories = ["Readability", "Engagement", "Clarity", "SEO"]
-    values = [
-        scores["readability"],
-        scores["engagement"],
-        scores["clarity"],
-        scores["seo"],
-    ]
-    values.append(values[0])  # close the polygon
-    categories.append(categories[0])
-
+    values = [scores["readability"], scores["engagement"], scores["clarity"], scores["seo"]]
+    values.append(values[0]); categories.append(categories[0])
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=categories,
-        fill="toself",
-        fillcolor="rgba(124, 77, 255, 0.15)",
-        line=dict(color="#7C4DFF", width=2),
-        marker=dict(size=8, color="#B388FF"),
-        name="Scores",
-    ))
+    fig.add_trace(go.Scatterpolar(r=values, theta=categories, fill="toself", fillcolor="rgba(124, 77, 255, 0.15)", line=dict(color="#7C4DFF", width=2), marker=dict(size=8, color="#B388FF")))
     fig.update_layout(
-        polar=dict(
-            bgcolor="rgba(0,0,0,0)",
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100],
-                gridcolor="rgba(124,77,255,0.1)",
-                linecolor="rgba(124,77,255,0.1)",
-                tickfont=dict(size=10, color="#666"),
-            ),
-            angularaxis=dict(
-                gridcolor="rgba(124,77,255,0.1)",
-                linecolor="rgba(124,77,255,0.1)",
-                tickfont=dict(size=12, color="#B388FF", family="Inter"),
-            ),
-        ),
-        showlegend=False,
-        height=320,
-        margin=dict(l=60, r=60, t=30, b=30),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        polar=dict(bgcolor="rgba(0,0,0,0)", radialaxis=dict(visible=True, range=[0, 100], gridcolor="rgba(124,77,255,0.1)"), angularaxis=dict(gridcolor="rgba(124,77,255,0.1)", tickfont=dict(size=12, color="#B388FF"))),
+        showlegend=False, height=320, margin=dict(l=60, r=60, t=30, b=30), paper_bgcolor="rgba(0,0,0,0)",
     )
     return fig
 
-
 def create_sentiment_bar(sentence_data):
-    """Create sentiment breakdown bar chart."""
-    if not sentence_data:
-        return None
-
+    if not sentence_data: return None
     labels = [f"S{i+1}" for i in range(len(sentence_data))]
     polarities = [s["polarity"] for s in sentence_data]
     colors = ["#00E676" if p > 0.1 else "#EF5350" if p < -0.1 else "#FFA726" for p in polarities]
-
-    fig = go.Figure(go.Bar(
-        x=labels,
-        y=polarities,
-        marker_color=colors,
-        marker_line_width=0,
-        hovertemplate="<b>%{x}</b><br>Polarity: %{y:.3f}<extra></extra>",
-    ))
-    fig.update_layout(
-        height=200,
-        margin=dict(l=40, r=20, t=10, b=30),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(gridcolor="rgba(124,77,255,0.05)", tickfont=dict(size=10, color="#666")),
-        yaxis=dict(
-            gridcolor="rgba(124,77,255,0.08)",
-            tickfont=dict(size=10, color="#666"),
-            title="Polarity",
-            titlefont=dict(size=11, color="#9E9E9E"),
-            zeroline=True,
-            zerolinecolor="rgba(124,77,255,0.2)",
-        ),
-    )
+    fig = go.Figure(go.Bar(x=labels, y=polarities, marker_color=colors, hovertemplate="<b>%{x}</b><br>Polarity: %{y:.3f}<extra></extra>"))
+    fig.update_layout(height=200, margin=dict(l=40, r=20, t=10, b=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis=dict(tickfont=dict(size=10, color="#666")), yaxis=dict(gridcolor="rgba(124,77,255,0.08)", tickfont=dict(size=10, color="#666"), zeroline=True, zerolinecolor="rgba(124,77,255,0.2)"))
     return fig
-
 
 def create_keyword_chart(keywords):
-    """Create keyword density bar chart."""
-    if not keywords:
-        return None
-
+    if not keywords: return None
     kw_data = keywords[:10]
-    words = [k["keyword"] for k in kw_data]
-    densities = [k["density"] for k in kw_data]
-
-    fig = go.Figure(go.Bar(
-        x=densities,
-        y=words,
-        orientation="h",
-        marker=dict(
-            color=densities,
-            colorscale=[[0, "#7C4DFF"], [0.5, "#B388FF"], [1, "#00E676"]],
-            line_width=0,
-        ),
-        hovertemplate="<b>%{y}</b><br>Density: %{x:.2f}%<extra></extra>",
-    ))
-    fig.update_layout(
-        height=max(200, len(kw_data) * 35),
-        margin=dict(l=10, r=20, t=10, b=30),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(
-            gridcolor="rgba(124,77,255,0.08)",
-            tickfont=dict(size=10, color="#666"),
-            title="Density %",
-            titlefont=dict(size=11, color="#9E9E9E"),
-        ),
-        yaxis=dict(
-            tickfont=dict(size=11, color="#B388FF"),
-            autorange="reversed",
-        ),
-    )
+    fig = go.Figure(go.Bar(x=[k["density"] for k in kw_data], y=[k["keyword"] for k in kw_data], orientation="h", marker=dict(color=[k["density"] for k in kw_data], colorscale=[[0, "#7C4DFF"], [0.5, "#B388FF"], [1, "#00E676"]])))
+    fig.update_layout(height=max(200, len(kw_data) * 35), margin=dict(l=10, r=20, t=10, b=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", xaxis=dict(gridcolor="rgba(124,77,255,0.08)", tickfont=dict(size=10, color="#666"), title="Density %"), yaxis=dict(tickfont=dict(size=11, color="#B388FF"), autorange="reversed"))
     return fig
+
+def render_diff_html(diff_segments):
+    """Render diff segments as colored HTML."""
+    html_parts = []
+    for seg in diff_segments:
+        if seg["type"] == "unchanged":
+            html_parts.append(seg["text"])
+        elif seg["type"] == "added":
+            html_parts.append(f'<span class="diff-added">{seg["text"]}</span>')
+        elif seg["type"] == "removed":
+            html_parts.append(f'<span class="diff-removed">{seg["text"]}</span>')
+    return " ".join(html_parts)
+
+def score_class(val):
+    if val >= 85: return "score-excellent"
+    if val >= 70: return "score-good"
+    if val >= 55: return "score-average"
+    if val >= 40: return "score-below"
+    return "score-poor"
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align:center; padding: 1rem 0;">
         <span style="font-size: 2.5rem;">🧠</span>
-        <h2 style="background: linear-gradient(135deg, #7C4DFF, #B388FF);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    font-weight: 800; margin: 0.5rem 0 0.2rem 0;">
-            Content AI
-        </h2>
-        <p style="color: #666; font-size: 0.8rem;">v{version}</p>
+        <h2 style="background: linear-gradient(135deg, #7C4DFF, #B388FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; margin: 0.5rem 0 0.2rem 0;">Content AI</h2>
+        <p style="color: #666; font-size: 0.8rem;">v{APP_VERSION}</p>
     </div>
-    """.format(version=APP_VERSION), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
-    # OpenAI API Key
-    st.markdown("#### ⚙️ Settings")
-    api_key = st.text_input(
-        "OpenAI API Key (optional)",
-        type="password",
-        help="Provide your API key for AI-powered rewriting. Leave empty for rule-based mode.",
-        placeholder="sk-...",
+    # Goal-Based Optimization
+    st.markdown("#### 🎯 Optimization Goal")
+    domain_presets = get_domain_presets()
+    selected_domain = st.selectbox(
+        "Content Type", options=list(domain_presets.keys()),
+        format_func=lambda x: domain_presets[x]["label"],
     )
 
+    # Dynamic Scoring Weights
+    st.markdown("#### ⚙️ Scoring Weights")
+    use_custom = st.checkbox("Customize weights", value=False)
+    custom_weights = None
+    if use_custom:
+        w_read = st.slider("Readability", 0, 100, 30, key="w_r") / 100
+        w_eng = st.slider("Engagement", 0, 100, 25, key="w_e") / 100
+        w_clar = st.slider("Clarity", 0, 100, 25, key="w_c") / 100
+        w_seo = st.slider("SEO", 0, 100, 20, key="w_s") / 100
+        total = w_read + w_eng + w_clar + w_seo
+        if total > 0:
+            custom_weights = {"readability": w_read/total, "engagement": w_eng/total, "clarity": w_clar/total, "seo": w_seo/total}
+
     st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
-    # Sample text
+    # OpenAI API Key (optional premium)
+    st.markdown("#### 🔑 Premium (Optional)")
+    api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...", help="Optional — for AI-powered rewriting")
+
+    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
+
+    # Quick Demo
     st.markdown("#### 📝 Quick Demo")
     sample_texts = {
         "Select a sample...": "",
-        "📰 News Article": (
-            "The rapid advancement of artificial intelligence has transformed "
-            "industries across the globe. From healthcare to finance, AI-powered "
-            "systems are now capable of analyzing vast amounts of data and making "
-            "decisions that were once the exclusive domain of human experts. "
-            "However, this technological revolution has also raised important "
-            "questions about ethics, employment, and the future of human creativity.\n\n"
-            "Recent studies show that companies implementing AI solutions report "
-            "an average productivity increase of 40 percent. Despite these gains, "
-            "experts warn that the transition must be managed carefully to avoid "
-            "displacing workers without providing adequate retraining opportunities.\n\n"
-            "What does the future hold? Many researchers believe that the key lies "
-            "not in replacing human workers, but in augmenting their capabilities. "
-            "By combining human creativity with machine efficiency, organizations "
-            "can achieve outcomes that neither could accomplish alone."
-        ),
-        "🎓 Academic Abstract": (
-            "This study investigates the impact of social media usage on academic "
-            "performance among university students. A cross-sectional survey was "
-            "conducted with 500 participants from three major universities. The "
-            "results indicate a statistically significant negative correlation "
-            "between daily social media consumption exceeding four hours and "
-            "grade point average. Furthermore, the analysis reveals that "
-            "platforms with predominantly visual content exhibit a stronger "
-            "negative association compared to text-based platforms. These findings "
-            "suggest that educational institutions should develop targeted "
-            "digital literacy programs to help students manage their online habits "
-            "effectively while maintaining academic excellence."
-        ),
-        "💼 Business Email": (
-            "Dear Team,\n\n"
-            "I wanted to share some exciting news regarding our Q3 performance. "
-            "We have exceeded our revenue targets by 15%, driven primarily by "
-            "the successful launch of our new product line. This achievement "
-            "reflects the hard work and dedication of every team member.\n\n"
-            "Moving forward, I'd like to outline our priorities for Q4:\n"
-            "1. Expand into two new market segments\n"
-            "2. Improve customer retention by 10%\n"
-            "3. Launch the updated mobile application\n\n"
-            "Please review the attached report for detailed figures. I look "
-            "forward to discussing our strategy in next week's all-hands meeting.\n\n"
-            "Best regards"
-        ),
+        "📰 News Article": "The rapid advancement of artificial intelligence has transformed industries across the globe. From healthcare to finance, AI-powered systems are now capable of analyzing vast amounts of data and making decisions that were once the exclusive domain of human experts. However, this technological revolution has also raised important questions about ethics, employment, and the future of human creativity.\n\nRecent studies show that companies implementing AI solutions report an average productivity increase of 40 percent. Despite these gains, experts warn that the transition must be managed carefully to avoid displacing workers without providing adequate retraining opportunities.\n\nWhat does the future hold? Many researchers believe that the key lies not in replacing human workers, but in augmenting their capabilities. By combining human creativity with machine efficiency, organizations can achieve outcomes that neither could accomplish alone.",
+        "🎓 Academic Abstract": "This study investigates the impact of social media usage on academic performance among university students. A cross-sectional survey was conducted with 500 participants from three major universities. The results indicate a statistically significant negative correlation between daily social media consumption exceeding four hours and grade point average. Furthermore, the analysis reveals that platforms with predominantly visual content exhibit a stronger negative association compared to text-based platforms. These findings suggest that educational institutions should develop targeted digital literacy programs to help students manage their online habits effectively while maintaining academic excellence.",
+        "💼 Business Email": "Dear Team,\n\nI wanted to share some exciting news regarding our Q3 performance. We have exceeded our revenue targets by 15%, driven primarily by the successful launch of our new product line. This achievement reflects the hard work and dedication of every team member.\n\nMoving forward, I'd like to outline our priorities for Q4:\n1. Expand into two new market segments\n2. Improve customer retention by 10%\n3. Launch the updated mobile application\n\nPlease review the attached report for detailed figures. I look forward to discussing our strategy in next week's all-hands meeting.\n\nBest regards",
     }
     selected_sample = st.selectbox("Load sample text", options=list(sample_texts.keys()))
 
     st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
-    # Insights panel placeholder
+    # Insights panel
     st.markdown("#### 🔮 Smart Insights")
     insights_placeholder = st.empty()
 
@@ -543,9 +256,7 @@ with st.sidebar:
 st.markdown("""
 <div class="hero-header">
     <h1 class="hero-title">🧠 AI Content Intelligence System</h1>
-    <p class="hero-subtitle">
-        Evaluate, improve, and optimize your content with advanced NLP — built for writers, students, and businesses.
-    </p>
+    <p class="hero-subtitle">Evaluate, improve, and optimize your content with advanced NLP — built for writers, students, and businesses.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -556,23 +267,11 @@ col_input, col_upload = st.columns([3, 1])
 
 with col_input:
     default_text = sample_texts.get(selected_sample, "")
-    user_text = st.text_area(
-        "✍️ Paste your content here",
-        value=default_text,
-        height=200,
-        placeholder="Enter or paste your text for analysis... (articles, essays, blog posts, CV content, etc.)",
-        key="main_text_input",
-    )
+    user_text = st.text_area("✍️ Paste your content here", value=default_text, height=200, placeholder="Enter or paste your text for analysis...", key="main_text_input")
 
 with col_upload:
     st.markdown("#### 📎 Upload Document")
-    uploaded_file = st.file_uploader(
-        "Upload file",
-        type=["pdf", "docx", "txt", "md"],
-        help="Supported: PDF, DOCX, TXT, MD",
-        label_visibility="collapsed",
-    )
-
+    uploaded_file = st.file_uploader("Upload file", type=["pdf", "docx", "txt", "md"], label_visibility="collapsed")
     if uploaded_file:
         try:
             from utils.extractor import extract_text
@@ -583,263 +282,118 @@ with col_upload:
             else:
                 st.error(f"❌ {extracted}")
         except Exception as e:
-            st.error(f"❌ Extraction error: {e}")
+            st.error(f"❌ {e}")
 
-    # Title input for SEO analysis
-    content_title = st.text_input(
-        "📌 Content Title (for SEO)",
-        placeholder="Your headline...",
-    )
+    content_title = st.text_input("📌 Content Title (for SEO)", placeholder="Your headline...")
 
 
-# ─── Analysis Trigger ───────────────────────────────────────────
+# ─── Analyze Button ──────────────────────────────────────────────
 
-analyze_col1, analyze_col2, analyze_col3 = st.columns([1, 1, 2])
-with analyze_col1:
+ac1, ac2, ac3 = st.columns([1, 1, 2])
+with ac1:
     analyze_btn = st.button("🚀 Analyze Content", use_container_width=True, type="primary")
 
 if not user_text or not user_text.strip():
-    if not analyze_btn:
-        st.markdown("""
-        <div class="glass-card" style="text-align: center; padding: 3rem;">
-            <p style="font-size: 3rem; margin-bottom: 1rem;">✨</p>
-            <h3 style="color: #B388FF; margin-bottom: 0.5rem;">Ready to Analyze</h3>
-            <p style="color: #666;">Paste your content or upload a document to get started.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.stop()
+    st.markdown('<div class="glass-card" style="text-align:center;padding:3rem;"><p style="font-size:3rem;">✨</p><h3 style="color:#B388FF;">Ready to Analyze</h3><p style="color:#666;">Paste your content or upload a document.</p></div>', unsafe_allow_html=True)
+    st.stop()
 
-if not analyze_btn and "analysis_results" not in st.session_state:
-    st.markdown("""
-    <div class="glass-card" style="text-align: center; padding: 3rem;">
-        <p style="font-size: 3rem; margin-bottom: 1rem;">✨</p>
-        <h3 style="color: #B388FF; margin-bottom: 0.5rem;">Content Ready</h3>
-        <p style="color: #666;">Click <b>🚀 Analyze Content</b> to begin.</p>
-    </div>
-    """, unsafe_allow_html=True)
+if not analyze_btn and "analysis_done" not in st.session_state:
+    st.markdown('<div class="glass-card" style="text-align:center;padding:3rem;"><p style="font-size:3rem;">✨</p><h3 style="color:#B388FF;">Content Ready</h3><p style="color:#666;">Click <b>🚀 Analyze Content</b> to begin.</p></div>', unsafe_allow_html=True)
     st.stop()
 
 
-# ─── Run Analysis ───────────────────────────────────────────────
+# ─── Run Analysis (Cached) ──────────────────────────────────────
 
-with st.spinner("🧠 Analyzing your content with NLP engines..."):
+with st.spinner("🧠 Analyzing with NLP engines..."):
     cleaned = clean_text(user_text)
-
     if len(cleaned) < 30:
-        st.warning("⚠️ Content is too short for meaningful analysis. Please provide more text.")
+        st.warning("⚠️ Content too short. Please provide more text.")
         st.stop()
 
-    text_stats = get_text_stats(cleaned)
-    readability_report = get_readability_report(cleaned)
-    tone_report = get_tone_report(cleaned)
-    scores = compute_content_score(cleaned)
-    seo_report = get_seo_report(cleaned, title=content_title)
+    text_stats = cached_text_stats(cleaned)
+    readability_report = cached_readability(cleaned)
+    tone_report = cached_tone(cleaned)
+    scores = compute_content_score(cleaned, domain=selected_domain, custom_weights=custom_weights)
+    seo_report = cached_seo(cleaned, content_title)
     score_label = get_score_label(scores["overall"])
-
-    # Generate insights
     insights = generate_insights(scores, readability_report, tone_report, seo_report, text_stats)
-
-    # Store in session
-    st.session_state["analysis_results"] = {
-        "text": cleaned,
-        "stats": text_stats,
-        "readability": readability_report,
-        "tone": tone_report,
-        "scores": scores,
-        "seo": seo_report,
-        "score_label": score_label,
-        "insights": insights,
-    }
+    st.session_state["analysis_done"] = True
 
 
-# ─── Results ─────────────────────────────────────────────────────
+# ─── Quick Stats Bar ────────────────────────────────────────────
 
 st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
-# ─── Quick Stats Bar ────────────────────────────────────────────
 qs1, qs2, qs3, qs4, qs5 = st.columns(5)
-
-def score_class(val):
-    if val >= 85: return "score-excellent"
-    if val >= 70: return "score-good"
-    if val >= 55: return "score-average"
-    if val >= 40: return "score-below"
-    return "score-poor"
-
 with qs1:
-    sc = score_class(scores["overall"])
-    st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-value {sc}">{scores['overall']}</p>
-        <p class="metric-label">Overall Score</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div class="metric-card"><p class="metric-value {score_class(scores["overall"])}">{scores["overall"]}</p><p class="metric-label">Overall Score</p></div>', unsafe_allow_html=True)
 with qs2:
-    st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-value" style="color: #B388FF;">{text_stats['words']}</p>
-        <p class="metric-label">Words</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{text_stats["words"]}</p><p class="metric-label">Words</p></div>', unsafe_allow_html=True)
 with qs3:
-    st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-value" style="color: #B388FF;">{text_stats['sentences']}</p>
-        <p class="metric-label">Sentences</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{text_stats["sentences"]}</p><p class="metric-label">Sentences</p></div>', unsafe_allow_html=True)
 with qs4:
-    st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-value" style="color: {readability_report['interpretation']['color']};">{readability_report['flesch_reading_ease']}</p>
-        <p class="metric-label">Readability</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{readability_report["interpretation"]["color"]};">{readability_report["flesch_reading_ease"]}</p><p class="metric-label">Readability</p></div>', unsafe_allow_html=True)
 with qs5:
-    tone_color = tone_report["tone"]["color"]
-    st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-value" style="font-size: 1.5rem; color: {tone_color};">{tone_report['tone']['emoji']} {tone_report['tone']['tone']}</p>
-        <p class="metric-label">Tone</p>
-    </div>
-    """, unsafe_allow_html=True)
+    tc = tone_report["tone"]
+    st.markdown(f'<div class="metric-card"><p class="metric-value" style="font-size:1.5rem;color:{tc["color"]};">{tc["emoji"]} {tc["tone"]}</p><p class="metric-label">Tone</p></div>', unsafe_allow_html=True)
+
+# Domain badge
+st.markdown(f'<div style="text-align:center;"><span class="badge badge-purple">🎯 {scores["domain_label"]}</span></div>', unsafe_allow_html=True)
 
 
 # ─── Sidebar Insights ───────────────────────────────────────────
+
 with insights_placeholder.container():
-    if insights["strengths"]:
-        for s in insights["strengths"][:3]:
-            st.markdown(f'<div class="insight-strength">{s["icon"]} {s["text"]}</div>', unsafe_allow_html=True)
-
-    if insights["weaknesses"]:
-        for w in insights["weaknesses"][:3]:
-            st.markdown(f'<div class="insight-weakness">{w["icon"]} {w["text"]}</div>', unsafe_allow_html=True)
-
-    if insights["tips"]:
-        for t in insights["tips"][:4]:
-            st.markdown(f'<div class="insight-tip">{t["icon"]} {t["text"]}</div>', unsafe_allow_html=True)
+    for s in insights.get("strengths", [])[:3]:
+        st.markdown(f'<div class="insight-strength">{s["icon"]} {s["text"]}</div>', unsafe_allow_html=True)
+    for w in insights.get("weaknesses", [])[:3]:
+        st.markdown(f'<div class="insight-weakness">{w["icon"]} {w["text"]}</div>', unsafe_allow_html=True)
+    for t in insights.get("tips", [])[:4]:
+        st.markdown(f'<div class="insight-tip">{t["icon"]} {t["text"]}</div>', unsafe_allow_html=True)
 
 
 # ─── Main Tabs ───────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Analysis Dashboard",
-    "🔍 SEO Analysis",
-    "🧠 AI Rewrite Engine",
-    "🚨 Plagiarism Check",
-    "🎓 Thesis Helper",
-])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Dashboard", "🔍 SEO Analysis", "🧠 AI Rewrite", "🚨 Plagiarism", "🎓 Thesis Helper"])
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TAB 1: Analysis Dashboard
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════ TAB 1: DASHBOARD ═══════════════════════════════
 
 with tab1:
-    # Score gauge + Radar
-    col_gauge, col_radar = st.columns([1, 1])
-
-    with col_gauge:
-        st.markdown(f"""
-        <div class="glass-card" style="text-align: center;">
-            <h4 style="color: #B388FF; margin-bottom: 0;">Content Quality Score</h4>
-            <span class="badge badge-{'green' if scores['overall'] >= 70 else 'yellow' if scores['overall'] >= 50 else 'red'}">
-                {score_label['emoji']} {score_label['label']}
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+    cg, cr = st.columns([1, 1])
+    with cg:
+        st.markdown(f'<div class="glass-card" style="text-align:center;"><h4 style="color:#B388FF;">Content Quality Score</h4><span class="badge badge-{"green" if scores["overall"]>=70 else "yellow" if scores["overall"]>=50 else "red"}">{score_label["emoji"]} {score_label["label"]}</span></div>', unsafe_allow_html=True)
         st.plotly_chart(create_gauge_chart(scores["overall"], ""), use_container_width=True)
-
-    with col_radar:
-        st.markdown("""
-        <div class="glass-card">
-            <h4 style="color: #B388FF; margin-bottom: 0;">Score Breakdown</h4>
-        </div>
-        """, unsafe_allow_html=True)
+    with cr:
+        st.markdown('<div class="glass-card"><h4 style="color:#B388FF;">Score Breakdown</h4></div>', unsafe_allow_html=True)
         st.plotly_chart(create_radar_chart(scores), use_container_width=True)
 
-    # Readability section
+    # Readability
     st.markdown("### 📖 Readability Analysis")
     r1, r2, r3, r4 = st.columns(4)
     interp = readability_report["interpretation"]
-
     with r1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="color: {interp['color']};">{readability_report['flesch_reading_ease']}</p>
-            <p class="metric-label">Flesch Reading Ease</p>
-            <p style="color: {interp['color']}; font-size: 0.8rem; margin:0;">{interp['label']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{interp["color"]};">{readability_report["flesch_reading_ease"]}</p><p class="metric-label">Flesch Reading Ease</p><p style="color:{interp["color"]};font-size:0.8rem;margin:0;">{interp["label"]}</p></div>', unsafe_allow_html=True)
     with r2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="color: #B388FF;">{readability_report['flesch_kincaid_grade']}</p>
-            <p class="metric-label">Grade Level</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{readability_report["flesch_kincaid_grade"]}</p><p class="metric-label">Grade Level</p></div>', unsafe_allow_html=True)
     with r3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="color: #B388FF;">{readability_report['gunning_fog']}</p>
-            <p class="metric-label">Gunning Fog</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{readability_report["gunning_fog"]}</p><p class="metric-label">Gunning Fog</p></div>', unsafe_allow_html=True)
     with r4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="color: #B388FF;">{readability_report['smog_index']}</p>
-            <p class="metric-label">SMOG Index</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{readability_report["smog_index"]}</p><p class="metric-label">SMOG Index</p></div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="glass-card">
-        <p>{interp['icon']} <b>Reading Level:</b> {interp['label']} — {interp['description']}</p>
-        <p>📚 <b>Target Audience:</b> {interp['audience']}</p>
-        <p>📋 <b>Consensus Grade:</b> {readability_report['consensus_grade']}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="glass-card"><p>{interp["icon"]} <b>Reading Level:</b> {interp["label"]} — {interp["description"]}</p><p>📚 <b>Audience:</b> {interp["audience"]}</p><p>📋 <b>Consensus Grade:</b> {readability_report["consensus_grade"]}</p></div>', unsafe_allow_html=True)
 
-    # Tone & Sentiment section
+    # Tone
     st.markdown("### 🎭 Tone & Sentiment")
     t1, t2, t3 = st.columns(3)
-
-    tone_data = tone_report["tone"]
-    subj_data = tone_report["subjectivity"]
-    form_data = tone_report["formality"]
-
+    td, sd, fd = tone_report["tone"], tone_report["subjectivity"], tone_report["formality"]
     with t1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p style="font-size: 2rem; margin: 0;">{tone_data['emoji']}</p>
-            <p class="metric-value" style="font-size: 1.3rem; color: {tone_data['color']};">{tone_data['tone']}</p>
-            <p class="metric-label">Sentiment</p>
-            <p style="font-size: 0.8rem; color: #666; margin: 0;">Polarity: {tone_report['overall_polarity']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p style="font-size:2rem;margin:0;">{td["emoji"]}</p><p class="metric-value" style="font-size:1.3rem;color:{td["color"]};">{td["tone"]}</p><p class="metric-label">Sentiment</p></div>', unsafe_allow_html=True)
     with t2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="font-size: 1.3rem; color: {subj_data['color']};">{subj_data['level']}</p>
-            <p class="metric-label">Objectivity</p>
-            <p style="font-size: 0.8rem; color: #666; margin: 0;">{subj_data['description']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="font-size:1.3rem;color:{sd["color"]};">{sd["level"]}</p><p class="metric-label">Objectivity</p><p style="font-size:0.8rem;color:#666;margin:0;">{sd["description"]}</p></div>', unsafe_allow_html=True)
     with t3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <p class="metric-value" style="font-size: 1.3rem; color: {form_data['color']};">{form_data['level']}</p>
-            <p class="metric-label">Formality</p>
-            <p style="font-size: 0.8rem; color: #666; margin: 0;">Score: {form_data['score']}/100</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><p class="metric-value" style="font-size:1.3rem;color:{fd["color"]};">{fd["level"]}</p><p class="metric-label">Formality</p><p style="font-size:0.8rem;color:#666;margin:0;">Score: {fd["score"]}/100</p></div>', unsafe_allow_html=True)
 
-    # Sentence-level sentiment
     sent_data = tone_report.get("sentence_breakdown", [])
     if sent_data:
         st.markdown("#### Sentence-Level Sentiment")
@@ -847,135 +401,88 @@ with tab1:
         if fig_sent:
             st.plotly_chart(fig_sent, use_container_width=True)
 
-    # Text statistics
+    # Text stats
     st.markdown("### 📐 Text Statistics")
     s1, s2, s3, s4 = st.columns(4)
-    with s1:
-        st.metric("Characters", f"{text_stats['characters']:,}")
-    with s2:
-        st.metric("Avg Word Length", f"{text_stats['avg_word_length']} chars")
-    with s3:
-        st.metric("Avg Sentence Length", f"{text_stats['avg_sentence_length']} words")
-    with s4:
-        st.metric("Reading Time", f"{text_stats['reading_time_min']} min")
+    with s1: st.metric("Characters", f"{text_stats['characters']:,}")
+    with s2: st.metric("Avg Word Length", f"{text_stats['avg_word_length']} chars")
+    with s3: st.metric("Avg Sentence", f"{text_stats['avg_sentence_length']} words")
+    with s4: st.metric("Reading Time", f"{text_stats['reading_time_min']} min")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TAB 2: SEO Analysis
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════ TAB 2: SEO ═════════════════════════════════════
 
 with tab2:
-    # Headline analysis
     if content_title:
         st.markdown("### 📰 Headline Analysis")
-        headline = seo_report.get("headline_analysis", {})
-        if headline:
-            hcol1, hcol2, hcol3 = st.columns(3)
-            with hcol1:
-                h_sc = headline.get("score", 0)
-                st.markdown(f"""
-                <div class="metric-card">
-                    <p class="metric-value {score_class(h_sc)}">{h_sc}</p>
-                    <p class="metric-label">Headline Score</p>
-                </div>
-                """, unsafe_allow_html=True)
-            with hcol2:
-                st.metric("Word Count", headline.get("word_count", 0))
-            with hcol3:
-                st.metric("Character Count", headline.get("char_count", 0))
+        hl = seo_report.get("headline_analysis", {})
+        if hl:
+            hc1, hc2, hc3 = st.columns(3)
+            with hc1:
+                st.markdown(f'<div class="metric-card"><p class="metric-value {score_class(hl.get("score",0))}">{hl.get("score",0)}</p><p class="metric-label">Headline Score</p></div>', unsafe_allow_html=True)
+            with hc2: st.metric("Word Count", hl.get("word_count", 0))
+            with hc3: st.metric("Char Count", hl.get("char_count", 0))
+            for sug in hl.get("suggestions", []):
+                st.info(f"💡 {sug}")
 
-            for suggestion in headline.get("suggestions", []):
-                st.info(f"💡 {suggestion}")
+    # TF-IDF Keywords (NEW)
+    tfidf = seo_report.get("tfidf_keywords", [])
+    if tfidf:
+        st.markdown("### 🏆 TF-IDF Important Keywords")
+        tfidf_cols = st.columns(min(5, len(tfidf)))
+        for idx, kw in enumerate(tfidf[:5]):
+            with tfidf_cols[idx]:
+                imp_color = "#00E676" if kw["importance"] == "high" else "#FFA726" if kw["importance"] == "medium" else "#666"
+                st.markdown(f'<div class="metric-card"><p class="metric-value" style="font-size:1rem;color:{imp_color};">{kw["keyword"]}</p><p class="metric-label">TF-IDF: {kw["tfidf_score"]}</p></div>', unsafe_allow_html=True)
 
     st.markdown("### 🔑 Top Keywords")
     kw_col, stats_col = st.columns([2, 1])
-
     with kw_col:
         fig_kw = create_keyword_chart(seo_report.get("keywords", []))
-        if fig_kw:
-            st.plotly_chart(fig_kw, use_container_width=True)
-        else:
-            st.info("No significant keywords found.")
-
+        if fig_kw: st.plotly_chart(fig_kw, use_container_width=True)
     with stats_col:
-        st.markdown(f"""
-        <div class="glass-card">
-            <h4 style="color: #B388FF;">📊 SEO Stats</h4>
-            <p>📝 <b>Total Words:</b> {seo_report.get('total_words', 0)}</p>
-            <p>🔤 <b>Unique Words:</b> {seo_report.get('unique_words', 0)}</p>
-            <p>📚 <b>Vocabulary Richness:</b> {seo_report.get('vocabulary_richness', 0)}%</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-card"><h4 style="color:#B388FF;">📊 SEO Stats</h4><p>📝 <b>Total Words:</b> {seo_report.get("total_words",0)}</p><p>🔤 <b>Unique Words:</b> {seo_report.get("unique_words",0)}</p><p>📚 <b>Vocabulary Richness:</b> {seo_report.get("vocabulary_richness",0)}%</p></div>', unsafe_allow_html=True)
 
-    # Bigrams
-    bigrams = seo_report.get("bigrams", [])
-    if bigrams:
-        st.markdown("### 🔗 Top Phrases (Bigrams)")
-        bigram_cols = st.columns(min(5, len(bigrams)))
-        for idx, bg in enumerate(bigrams[:5]):
-            with bigram_cols[idx]:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <p class="metric-value" style="font-size: 1rem; color: #B388FF;">{bg['phrase']}</p>
-                    <p class="metric-label">{bg['count']}× used</p>
-                </div>
-                """, unsafe_allow_html=True)
+    # Topic Clusters (NEW)
+    clusters = seo_report.get("topic_clusters", [])
+    if clusters:
+        st.markdown("### 🧩 Topic Clusters")
+        for cl in clusters:
+            st.markdown(f'<div class="glass-card"><p style="color:#B388FF;font-weight:600;">{cl.get("label","")}</p><p style="color:#9E9E9E;">Keywords: {", ".join(cl.get("keywords",[]))}</p></div>', unsafe_allow_html=True)
 
-    # Keyword density table
+    # SEO Suggestions (NEW)
+    seo_suggestions = seo_report.get("seo_suggestions", [])
+    if seo_suggestions:
+        st.markdown("### 💡 SEO Recommendations")
+        for sug in seo_suggestions:
+            badge_cls = "badge-red" if sug["priority"] == "high" else "badge-yellow" if sug["priority"] == "medium" else "badge-green"
+            st.markdown(f'{sug["icon"]} {sug["text"]} <span class="badge {badge_cls}">{sug["priority"]}</span>', unsafe_allow_html=True)
+
+    # Keyword table
     keywords = seo_report.get("keywords", [])
     if keywords:
         st.markdown("### 📋 Keyword Density Table")
         import pandas as pd
         df = pd.DataFrame(keywords)
         df.columns = ["Keyword", "Count", "Density (%)"]
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Density (%)": st.column_config.ProgressColumn(
-                    min_value=0,
-                    max_value=max(df["Density (%)"].max() * 1.5, 5),
-                    format="%.2f%%",
-                ),
-            },
-        )
+        st.dataframe(df, use_container_width=True, hide_index=True, column_config={"Density (%)": st.column_config.ProgressColumn(min_value=0, max_value=max(df["Density (%)"].max()*1.5, 5), format="%.2f%%")})
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TAB 3: AI Rewrite Engine
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════ TAB 3: AI REWRITE ══════════════════════════════
 
 with tab3:
-    st.markdown("""
-    <div class="glass-card">
-        <h3 style="color: #B388FF; margin: 0;">🧠 AI Content Improvement Engine</h3>
-        <p style="color: #9E9E9E; margin: 0.5rem 0 0 0;">
-            Enhance your content with rule-based optimization or AI-powered rewriting.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🧠 AI Content Improvement Engine</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Free grammar correction + rule-based optimization. Optional AI-powered rewriting with OpenAI.</p></div>', unsafe_allow_html=True)
 
-    rw_col1, rw_col2 = st.columns(2)
-
-    with rw_col1:
-        rewrite_mode = st.radio(
-            "Rewrite Mode",
-            options=["⚡ Rule-Based (Free)", "🤖 AI-Powered (API Key)"],
-            horizontal=True,
-        )
-
-    with rw_col2:
-        audience = st.selectbox(
-            "Target Audience",
-            options=list(AUDIENCE_PRESETS.keys()),
-            format_func=lambda x: AUDIENCE_PRESETS[x]["label"],
-        )
+    rw1, rw2 = st.columns(2)
+    with rw1:
+        rewrite_mode = st.radio("Mode", ["⚡ Rule-Based + Grammar (Free)", "🤖 AI-Powered (API Key)"], horizontal=True)
+    with rw2:
+        audience = st.selectbox("Audience", list(AUDIENCE_PRESETS.keys()), format_func=lambda x: AUDIENCE_PRESETS[x]["label"])
         st.caption(AUDIENCE_PRESETS[audience]["description"])
 
     if st.button("✨ Improve Content", use_container_width=True, type="primary", key="rewrite_btn"):
         if "Rule-Based" in rewrite_mode:
-            with st.spinner("⚡ Applying rule-based improvements..."):
+            with st.spinner("⚡ Applying improvements + grammar check..."):
                 result = rule_based_rewrite(cleaned)
 
             # Changes summary
@@ -983,179 +490,157 @@ with tab3:
             for change in result["changes"]:
                 st.markdown(f"- {change}")
 
-            # Side-by-side comparison
-            st.markdown("### 📝 Comparison")
-            cmp1, cmp2 = st.columns(2)
-            with cmp1:
-                st.markdown('<p class="comparison-header original-header">❌ ORIGINAL</p>', unsafe_allow_html=True)
-                st.markdown(f'<div class="comparison-card">{cleaned[:1000]}</div>', unsafe_allow_html=True)
-            with cmp2:
-                st.markdown('<p class="comparison-header improved-header">✅ IMPROVED</p>', unsafe_allow_html=True)
-                st.markdown(f'<div class="comparison-card">{result["improved_text"][:1000]}</div>', unsafe_allow_html=True)
+            # Grammar corrections detail
+            grammar = result.get("grammar", {})
+            if grammar.get("available") and grammar.get("corrections"):
+                st.markdown("### 📝 Grammar Corrections")
+                for corr in grammar["corrections"][:8]:
+                    st.markdown(f"""
+                    <div class="grammar-fix">
+                        <p style="margin:0;"><b>❌</b> <span class="diff-removed">{corr['original']}</span> → <b>✅</b> <span class="diff-added">{corr['suggestion']}</span></p>
+                        <p style="color:#9E9E9E;font-size:0.8rem;margin:0.3rem 0 0 0;">💡 {corr['reason']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-            # Passive voice suggestions
+            # Change explanations
+            if result.get("change_details"):
+                st.markdown("### 📖 Why These Changes?")
+                for cd in result["change_details"]:
+                    st.markdown(f'<div class="insight-tip">💡 {cd["reason"]}</div>', unsafe_allow_html=True)
+
+            # Diff View (NEW)
+            if result.get("diff"):
+                st.markdown("### 🔄 Diff View (Before → After)")
+                diff_html = render_diff_html(result["diff"])
+                st.markdown(f'<div class="glass-card" style="line-height:1.8;font-size:0.95rem;">{diff_html}</div>', unsafe_allow_html=True)
+
+            # Side-by-side
+            st.markdown("### 📝 Full Comparison")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<p style="color:#EF5350;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-size:0.85rem;">❌ ORIGINAL</p>', unsafe_allow_html=True)
+                st.text_area("Original", value=cleaned[:2000], height=200, disabled=True, key="orig_compare")
+            with c2:
+                st.markdown('<p style="color:#00E676;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-size:0.85rem;">✅ IMPROVED</p>', unsafe_allow_html=True)
+                st.text_area("Improved", value=result["improved_text"][:2000], height=200, disabled=True, key="imp_compare")
+
+            # Passive voice
             if result.get("passive_suggestions"):
                 st.markdown("### ⚠️ Passive Voice Instances")
                 for ps in result["passive_suggestions"][:5]:
-                    st.warning(f"**\"{ps['text']}\"** — {ps['suggestion']}")
+                    st.warning(f"**\"{ps['text']}\"** — {ps['reason']}")
 
         else:
-            # AI-Powered rewrite
             if not api_key:
-                st.warning("⚠️ Please enter your OpenAI API key in the sidebar to use AI-powered rewriting.")
+                st.warning("⚠️ Enter your OpenAI API key in the sidebar for AI rewriting.")
             else:
-                with st.spinner("🤖 AI is rewriting your content..."):
+                with st.spinner("🤖 AI rewriting..."):
                     result = ai_rewrite(cleaned, api_key, audience=audience)
-
                 if result["success"]:
-                    st.markdown("### 📝 AI-Improved Version")
-                    st.markdown(f'<span class="badge badge-purple">{result["audience"]}</span>', unsafe_allow_html=True)
-
-                    cmp1, cmp2 = st.columns(2)
-                    with cmp1:
-                        st.markdown('<p class="comparison-header original-header">❌ ORIGINAL</p>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="comparison-card">{cleaned[:1500]}</div>', unsafe_allow_html=True)
-                    with cmp2:
-                        st.markdown('<p class="comparison-header improved-header">✅ AI IMPROVED</p>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="comparison-card">{result["improved_text"][:1500]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'### 📝 AI-Improved Version <span class="badge badge-purple">{result["audience"]}</span>', unsafe_allow_html=True)
+                    if result.get("diff"):
+                        st.markdown("### 🔄 Diff View")
+                        st.markdown(f'<div class="glass-card" style="line-height:1.8;">{render_diff_html(result["diff"])}</div>', unsafe_allow_html=True)
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.text_area("Original", value=cleaned[:2000], height=200, disabled=True, key="ai_orig")
+                    with c2:
+                        st.text_area("AI Improved", value=result["improved_text"][:2000], height=200, disabled=True, key="ai_imp")
                 else:
-                    st.error(f"❌ Error: {result['error']}")
+                    st.error(f"❌ {result['error']}")
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TAB 4: Plagiarism Check
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════ TAB 4: PLAGIARISM ══════════════════════════════
 
 with tab4:
-    st.markdown("""
-    <div class="glass-card">
-        <h3 style="color: #B388FF; margin: 0;">🚨 Plagiarism Risk Indicator</h3>
-        <p style="color: #9E9E9E; margin: 0.5rem 0 0 0;">
-            Analyze internal content repetition and cross-document similarity.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🚨 Plagiarism Risk Indicator</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Internal repetition + n-gram fingerprinting + cross-document TF-IDF comparison.</p></div>', unsafe_allow_html=True)
 
-    # Reference text for cross-document check
-    ref_text = st.text_area(
-        "📄 Reference text for comparison (optional)",
-        height=120,
-        placeholder="Paste reference text to compare against...",
-    )
+    ref_text = st.text_area("📄 Reference text (optional)", height=120, placeholder="Paste reference text to compare against...")
 
     if st.button("🔍 Check Plagiarism Risk", use_container_width=True, key="plag_btn"):
-        with st.spinner("🔍 Analyzing content similarity..."):
+        with st.spinner("🔍 Analyzing..."):
             plag_report = get_plagiarism_report(cleaned, ref_text if ref_text else None)
 
         internal = plag_report["internal"]
-
-        # Risk gauge
         p1, p2 = st.columns([1, 2])
         with p1:
-            st.plotly_chart(
-                create_gauge_chart(100 - internal["risk_score"], "Originality"),
-                use_container_width=True,
-            )
+            st.plotly_chart(create_gauge_chart(100 - internal["risk_score"], "Originality"), use_container_width=True)
         with p2:
-            risk_badge = "badge-green" if internal["risk_level"] == "Low" else "badge-yellow" if internal["risk_level"] == "Medium" else "badge-red"
-            st.markdown(f"""
-            <div class="glass-card">
-                <h4>Risk Assessment</h4>
-                <p><span class="badge {risk_badge}">{internal['risk_level']} Risk</span></p>
-                <p>{internal['message']}</p>
-                <p style="color: #666; font-size: 0.85rem;">
-                    📝 Sentences analyzed: {internal['total_sentences']} |
-                    🔄 Comparisons made: {internal['total_comparisons']}
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+            rb = "badge-green" if internal["risk_level"]=="Low" else "badge-yellow" if internal["risk_level"]=="Medium" else "badge-red"
+            st.markdown(f'<div class="glass-card"><h4>Risk Assessment</h4><p><span class="badge {rb}">{internal["risk_level"]} Risk</span></p><p>{internal["message"]}</p><p style="color:#666;font-size:0.85rem;">📝 Sentences: {internal["total_sentences"]} | 🔄 Comparisons: {internal["total_comparisons"]}</p></div>', unsafe_allow_html=True)
 
-        # Similar pairs
+        # Repeated n-grams (NEW)
+        if internal.get("repeated_ngrams"):
+            st.markdown("### 🔁 Repeated Phrases (N-gram Analysis)")
+            for ng in internal["repeated_ngrams"][:5]:
+                st.markdown(f'<div class="insight-tip">📌 "{ng["ngram"]}" — appears {ng["count"]}× </div>', unsafe_allow_html=True)
+
         if internal["similar_pairs"]:
             st.markdown("### ⚠️ Flagged Similar Sentences")
             for pair in internal["similar_pairs"][:5]:
-                with st.expander(f"🔗 Similarity: {pair['similarity']}% — Sentences {pair['index_a']} & {pair['index_b']}"):
+                with st.expander(f"🔗 {pair['similarity']}% — Sentences {pair['index_a']} & {pair['index_b']}"):
                     c1, c2 = st.columns(2)
-                    with c1:
-                        st.markdown(f"**Sentence {pair['index_a']}:** {pair['sentence_a']}")
-                    with c2:
-                        st.markdown(f"**Sentence {pair['index_b']}:** {pair['sentence_b']}")
+                    with c1: st.markdown(f"**Sentence {pair['index_a']}:** {pair['sentence_a']}")
+                    with c2: st.markdown(f"**Sentence {pair['index_b']}:** {pair['sentence_b']}")
 
-        # Cross-document results
         if "cross_document" in plag_report:
             st.markdown("### 📊 Cross-Document Comparison")
             cross = plag_report["cross_document"]
-            st.markdown(f"""
-            <div class="glass-card">
-                <p style="font-size: 1.5rem; font-weight: 800; color: {cross['color']};">
-                    {cross['similarity_score']}% Similarity
-                </p>
-                <p>Level: <span class="badge" style="background: {cross['color']}20; color: {cross['color']};">{cross['level']}</span></p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="glass-card"><p style="font-size:1.5rem;font-weight:800;color:{cross["color"]};">{cross["combined_similarity"]}% Combined Similarity</p><p>TF-IDF: {cross["tfidf_similarity"]}% | Fingerprint: {cross["fingerprint_similarity"]}%</p><p>Level: <span class="badge" style="background:{cross["color"]}20;color:{cross["color"]};">{cross["level"]}</span></p></div>', unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# TAB 5: Thesis Helper
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════ TAB 5: THESIS HELPER ═══════════════════════════
 
 with tab5:
-    st.markdown("""
-    <div class="glass-card">
-        <h3 style="color: #B388FF; margin: 0;">🎓 Thesis Helper Mode</h3>
-        <p style="color: #9E9E9E; margin: 0.5rem 0 0 0;">
-            Get structure suggestions, abstract improvements, and academic writing tips.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🎓 Thesis Helper Mode</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Structure analysis, citation format detection, argument coherence, and academic writing tips.</p></div>', unsafe_allow_html=True)
 
-    if st.button("🎓 Analyze for Academic Writing", use_container_width=True, key="thesis_btn"):
-        with st.spinner("🎓 Analyzing academic structure..."):
+    if st.button("🎓 Analyze Academic Writing", use_container_width=True, key="thesis_btn"):
+        with st.spinner("🎓 Analyzing..."):
             thesis_result = thesis_helper(cleaned, api_key if api_key else None)
 
-        # Structure analysis
+        # Structure
         st.markdown("### 📋 Structure Analysis")
         sections = thesis_result.get("found_sections", {})
-        struct_cols = st.columns(4)
+        cols = st.columns(min(6, len(sections)))
         for idx, (section, found) in enumerate(sections.items()):
-            with struct_cols[idx]:
+            with cols[idx % len(cols)]:
                 emoji = "✅" if found else "❌"
                 color = "#00E676" if found else "#EF5350"
-                st.markdown(f"""
-                <div class="metric-card">
-                    <p style="font-size: 1.5rem; margin: 0;">{emoji}</p>
-                    <p class="metric-label" style="color: {color};">{section.title()}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                label = section.replace("_", " ").title()
+                st.markdown(f'<div class="metric-card"><p style="font-size:1.5rem;margin:0;">{emoji}</p><p class="metric-label" style="color:{color};">{label}</p></div>', unsafe_allow_html=True)
+
+        # Citations (NEW)
+        citations = thesis_result.get("citations", {})
+        if citations:
+            st.markdown("### 📚 Citation Analysis")
+            for fmt, data in citations.items():
+                st.markdown(f'<div class="glass-card"><p><b>{fmt}</b> format detected — {data["count"]} citation(s)</p><p style="color:#666;font-size:0.85rem;">Examples: {", ".join(data["examples"][:3])}</p></div>', unsafe_allow_html=True)
+
+        # Coherence (NEW)
+        coherence = thesis_result.get("coherence", {})
+        if coherence:
+            st.markdown("### 🔗 Argument Coherence")
+            ch1, ch2, ch3 = st.columns(3)
+            with ch1:
+                st.markdown(f'<div class="metric-card"><p class="metric-value {score_class(coherence["score"])}">{coherence["score"]}</p><p class="metric-label">Coherence Score</p></div>', unsafe_allow_html=True)
+            with ch2:
+                st.metric("Claims", "✅ Found" if coherence["has_claims"] else "❌ Missing")
+            with ch3:
+                st.metric("Evidence", "✅ Found" if coherence["has_evidence"] else "❌ Missing")
 
         # Suggestions
         st.markdown("### 💡 Suggestions")
-        for suggestion in thesis_result.get("suggestions", []):
-            st.markdown(f"""
-            <div class="insight-tip">{suggestion}</div>
-            """, unsafe_allow_html=True)
+        for sug in thesis_result.get("suggestions", []):
+            st.markdown(f'<div class="insight-tip">{sug}</div>', unsafe_allow_html=True)
 
-        # Stats
-        st.markdown(f"""
-        <div class="glass-card">
-            <p>📝 <b>Word Count:</b> {thesis_result.get('word_count', 0)}</p>
-            <p>📄 <b>Paragraphs:</b> {thesis_result.get('paragraph_count', 0)}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="glass-card"><p>📝 <b>Words:</b> {thesis_result.get("word_count",0)}</p><p>📄 <b>Paragraphs:</b> {thesis_result.get("paragraph_count",0)}</p></div>', unsafe_allow_html=True)
 
-        # AI-improved version
         if thesis_result.get("ai_improved"):
             st.markdown("### 🤖 AI-Improved Academic Version")
-            st.markdown(f"""
-            <div class="comparison-card">{thesis_result['ai_improved'][:2000]}</div>
-            """, unsafe_allow_html=True)
+            st.text_area("AI Academic", value=thesis_result["ai_improved"][:2000], height=200, disabled=True, key="thesis_ai")
 
 
 # ─── Footer ──────────────────────────────────────────────────────
+
 st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
-st.markdown(f"""
-<div style="text-align: center; padding: 1rem; color: #666;">
-    <p style="margin: 0;">🧠 <b>AI Content Intelligence System</b> v{APP_VERSION}</p>
-    <p style="margin: 0; font-size: 0.8rem;">Powered by NLP • Built for Writers, Students & Businesses</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(f'<div style="text-align:center;padding:1rem;color:#666;"><p style="margin:0;">🧠 <b>AI Content Intelligence System</b> v{APP_VERSION}</p><p style="margin:0;font-size:0.8rem;">Powered by NLP • Built for Writers, Students & Businesses</p></div>', unsafe_allow_html=True)
