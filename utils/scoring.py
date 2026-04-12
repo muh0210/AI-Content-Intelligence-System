@@ -53,6 +53,37 @@ DOMAIN_PRESETS = {
         "ideal_readability": (70, 95),
         "ideal_sentence_length": (8, 15),
     },
+    # V4: Industry-Specific Profiles
+    "financial": {
+        "label": "💰 Financial Reports",
+        "weights": {"readability": 0.10, "engagement": 0.10, "clarity": 0.45, "seo": 0.35},
+        "ideal_readability": (25, 50),
+        "ideal_sentence_length": (15, 30),
+    },
+    "marketing": {
+        "label": "📣 Marketing Copy",
+        "weights": {"readability": 0.25, "engagement": 0.40, "clarity": 0.15, "seo": 0.20},
+        "ideal_readability": (65, 90),
+        "ideal_sentence_length": (8, 16),
+    },
+    "legal": {
+        "label": "⚖️ Legal Documents",
+        "weights": {"readability": 0.05, "engagement": 0.05, "clarity": 0.50, "seo": 0.40},
+        "ideal_readability": (20, 45),
+        "ideal_sentence_length": (18, 35),
+    },
+    "academic_paper": {
+        "label": "📄 Academic Papers",
+        "weights": {"readability": 0.10, "engagement": 0.10, "clarity": 0.45, "seo": 0.35},
+        "ideal_readability": (25, 55),
+        "ideal_sentence_length": (16, 30),
+    },
+    "upwork": {
+        "label": "💼 Upwork Proposals",
+        "weights": {"readability": 0.30, "engagement": 0.35, "clarity": 0.25, "seo": 0.10},
+        "ideal_readability": (65, 85),
+        "ideal_sentence_length": (10, 18),
+    },
 }
 
 

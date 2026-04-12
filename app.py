@@ -1,7 +1,8 @@
 """
-AI Content Intelligence System — Premium Streamlit Application (V3 — Elite)
+AI Content Intelligence System — V4 Elite
 Production-grade AI-powered content analysis, scoring, and rewriting platform.
-Features: embeddings, ML scoring, semantic coherence, search intent, grammar correction, diff view.
+Features: Content DNA, Emotional Mapping, Conversion Scoring, AI Detection,
+Pre-Write Predictor, Competitor Benchmarking, ROI Calculator, PDF Certificate.
 """
 
 import streamlit as st
@@ -22,6 +23,12 @@ from utils.seo import get_seo_report
 from utils.rewrite import rule_based_rewrite, ai_rewrite, thesis_helper, grammar_check
 from utils.plagiarism import get_plagiarism_report
 from utils.insights import generate_insights
+from utils.content_dna import get_content_dna
+from utils.emotions import get_emotion_report
+from utils.conversion import get_conversion_score
+from utils.roi import get_roi_report
+from utils.predictor import get_prediction_report
+from utils.certificate import generate_certificate, HAS_FPDF
 
 # V3: Embeddings (lazy-loaded, optional)
 try:
@@ -391,7 +398,11 @@ with insights_placeholder.container():
 
 # ─── Main Tabs ───────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Dashboard", "🔍 SEO Analysis", "🧠 AI Rewrite", "🚨 Plagiarism", "🎓 Thesis Helper", "🤖 AI Intelligence"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    "📊 Dashboard", "🔍 SEO", "🧠 AI Rewrite", "🚨 Plagiarism",
+    "🎓 Thesis", "🤖 AI Intel", "🧬 Content DNA", "💖 Emotions",
+    "💰 Conversion & ROI", "🔮 Pre-Write"
+])
 
 
 # ═══════════════ TAB 1: DASHBOARD ═══════════════════════════════
@@ -640,6 +651,27 @@ with tab4:
             cross = plag_report["cross_document"]
             st.markdown(f'<div class="glass-card"><p style="font-size:1.5rem;font-weight:800;color:{cross["color"]};">{cross["combined_similarity"]}% Combined Similarity</p><p>TF-IDF: {cross["tfidf_similarity"]}% | Fingerprint: {cross["fingerprint_similarity"]}%</p><p>Level: <span class="badge" style="background:{cross["color"]}20;color:{cross["color"]};">{cross["level"]}</span></p></div>', unsafe_allow_html=True)
 
+        # V4: AI Detection
+        ai_det = plag_report.get("ai_detection", {})
+        if ai_det:
+            st.markdown("### 🤖 AI Content Detection")
+            aic1, aic2 = st.columns(2)
+            with aic1:
+                st.markdown(f'<div class="glass-card" style="text-align:center;"><p style="font-size:2.5rem;font-weight:800;color:{ai_det.get("color","#666")};">{ai_det.get("ai_probability",0)}%</p><p style="color:#9E9E9E;">AI Probability</p><p><span class="badge" style="background:{ai_det.get("color","#666")}20;color:{ai_det.get("color","#666")};">{ai_det.get("label","N/A")}</span></p></div>', unsafe_allow_html=True)
+            with aic2:
+                signals = ai_det.get("signals", [])
+                if signals:
+                    sigs_html = ''.join(f'<p style="color:#9E9E9E;font-size:0.85rem;margin:0.3rem 0;">🔍 {s}</p>' for s in signals)
+                    st.markdown(f'<div class="glass-card"><h4>Detection Signals</h4>{sigs_html}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="glass-card"><h4>Detection Signals</h4><p style="color:#00E676;">No strong AI signals detected</p></div>', unsafe_allow_html=True)
+
+        # V4: Combined Authenticity Score
+        auth = plag_report.get("authenticity", {})
+        if auth:
+            st.markdown("### 🛡️ Combined Authenticity Score")
+            st.markdown(f'<div class="glass-card" style="text-align:center;padding:1.5rem;"><p style="font-size:3rem;font-weight:800;color:{auth.get("color","#666")};">{auth.get("score",0)}/100</p><p style="font-size:1.2rem;"><span class="badge" style="background:{auth.get("color","#666")}20;color:{auth.get("color","#666")};">{auth.get("label","N/A")}</span></p><p style="color:#666;font-size:0.85rem;">Plagiarism Risk + AI Detection = Authenticity</p></div>', unsafe_allow_html=True)
+
 
 # ═══════════════ TAB 5: THESIS HELPER ═══════════════════════════
 
@@ -757,7 +789,250 @@ with tab6:
         st.markdown('<div class="glass-card" style="text-align:center;padding:2rem;"><p style="font-size:3rem;">🤖</p><h3 style="color:#B388FF;">AI Intelligence</h3><p style="color:#666;">Click <b>🧠 Run AI Analysis</b> to perform deep semantic analysis using sentence embeddings.</p><p style="color:#666;font-size:0.85rem;">This analyzes: semantic coherence, topic detection, ML-enhanced quality scoring</p></div>', unsafe_allow_html=True)
 
 
+# ═══════════════ TAB 7: CONTENT DNA ════════════════════════════════
+
+with tab7:
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🧬 Content DNA Fingerprinting</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Analyze writing style patterns — sentence rhythm, vocabulary, voice, complexity.</p></div>', unsafe_allow_html=True)
+
+    if st.button("🧬 Generate Content DNA", use_container_width=True, key="dna_btn"):
+        with st.spinner("🧬 Analyzing writing patterns..."):
+            dna = get_content_dna(cleaned)
+
+        # Radar Chart
+        radar = dna.get("radar", {})
+        if radar:
+            categories = list(radar.keys())
+            values = list(radar.values())
+            fig = go.Figure(go.Scatterpolar(
+                r=values + [values[0]],
+                theta=categories + [categories[0]],
+                fill='toself',
+                fillcolor='rgba(124,77,255,0.15)',
+                line=dict(color='#7C4DFF', width=2),
+            ))
+            fig.update_layout(
+                polar=dict(bgcolor='rgba(0,0,0,0)', radialaxis=dict(visible=True, range=[0, 100], gridcolor='rgba(124,77,255,0.1)')),
+                paper_bgcolor='rgba(0,0,0,0)', height=350, margin=dict(l=60, r=60, t=30, b=30),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Metrics
+        d1, d2, d3 = st.columns(3)
+        vocab = dna.get("vocabulary", {})
+        voice = dna.get("voice", {})
+        sent = dna.get("sentence_variation", {})
+
+        with d1:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{vocab.get("color","#B388FF")};">{vocab.get("ttr",0)}%</p><p class="metric-label">Vocabulary Richness (TTR)</p><p style="color:#666;font-size:0.8rem;margin:0;">{vocab.get("label","N/A")} — {vocab.get("unique_words",0)} unique / {vocab.get("total_words",0)} total</p></div>', unsafe_allow_html=True)
+        with d2:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{voice.get("color","#B388FF")};">{voice.get("active_pct",0)}%</p><p class="metric-label">Active Voice</p><p style="color:#666;font-size:0.8rem;margin:0;">{voice.get("style","N/A")} — {voice.get("passive_count",0)} passive sentences</p></div>', unsafe_allow_html=True)
+        with d3:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{sent.get("color","#B388FF")};">{sent.get("std_dev",0)}</p><p class="metric-label">Sentence Variation (StdDev)</p><p style="color:#666;font-size:0.8rem;margin:0;">{sent.get("variation_label","N/A")}</p></div>', unsafe_allow_html=True)
+
+        # Word complexity
+        cplx = dna.get("complexity", {})
+        st.markdown(f'<div class="glass-card"><p>📊 <b>Average Syllables:</b> {cplx.get("avg_syllables",0)} | <b>Complex Words:</b> {cplx.get("complex_word_pct",0)}%</p></div>', unsafe_allow_html=True)
+
+        # Paragraph rhythm
+        rhythm = dna.get("rhythm", {})
+        if rhythm.get("lengths"):
+            st.markdown(f"### 📐 Paragraph Rhythm: **{rhythm.get('rhythm','N/A')}**")
+            fig2 = go.Figure(go.Bar(y=rhythm["lengths"], marker_color='#7C4DFF', opacity=0.7))
+            fig2.update_layout(height=150, margin=dict(l=30, r=20, t=10, b=30), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(title="Paragraph #"), yaxis=dict(title="Words"))
+            st.plotly_chart(fig2, use_container_width=True)
+
+
+# ═══════════════ TAB 8: EMOTIONS ═══════════════════════════════════
+
+with tab8:
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">💖 Emotional Impact Mapping</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Map content to 8 core emotions: trust, anticipation, fear, surprise, joy, sadness, disgust, anger.</p></div>', unsafe_allow_html=True)
+
+    emotion_goal = st.selectbox("Target Emotion Goal", ["trust", "excitement", "urgency", "authority", "empathy", "motivation"], key="emo_goal")
+
+    if st.button("💖 Analyze Emotions", use_container_width=True, key="emo_btn"):
+        with st.spinner("💖 Mapping emotional signals..."):
+            emo_report = get_emotion_report(cleaned, goal=emotion_goal)
+
+        overall_emo = emo_report.get("overall", {})
+        dom = overall_emo.get("dominant", {})
+        st.markdown(f'<div class="glass-card" style="text-align:center;"><p style="font-size:3rem;margin:0;">{dom.get("emoji","")}</p><p style="font-size:1.5rem;font-weight:700;color:{dom.get("color","#B388FF")};">Dominant: {dom.get("emotion","N/A").title()}</p><p style="color:#666;">Total emotional signals: {overall_emo.get("total_signals",0)}</p></div>', unsafe_allow_html=True)
+
+        # Emotion bars
+        emotions = overall_emo.get("emotions", {})
+        if emotions:
+            emo_names = [e.title() for e in emotions]
+            emo_pcts = [emotions[e]["percentage"] for e in emotions]
+            emo_colors = [emotions[e]["color"] for e in emotions]
+            fig = go.Figure(go.Bar(x=emo_pcts, y=emo_names, orientation='h', marker_color=emo_colors))
+            fig.update_layout(height=300, margin=dict(l=100, r=20, t=10, b=30), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis=dict(title="% of signals"))
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Goal alignment
+        alignment = emo_report.get("alignment", {})
+        if alignment:
+            st.markdown(f'<div class="glass-card"><h4>🎯 Goal Alignment: {emotion_goal.title()}</h4><p style="font-size:2rem;font-weight:700;color:{alignment.get("color","#666")};">{alignment.get("alignment_score",0)}%</p><p style="color:#9E9E9E;">{alignment.get("verdict","N/A")}</p></div>', unsafe_allow_html=True)
+
+        # Paragraph breakdown
+        paras = emo_report.get("paragraphs", [])
+        if paras:
+            st.markdown("### 📝 Paragraph-Level Emotions")
+            for p in paras[:10]:
+                st.markdown(f'<div class="glass-card"><p style="color:{p.get("color","#666")};font-weight:600;">{p.get("emoji","")} P{p.get("paragraph",0)}: {p.get("dominant_emotion","").title()}</p><p style="color:#9E9E9E;font-size:0.85rem;">{p.get("preview","")}</p></div>', unsafe_allow_html=True)
+
+
+# ═══════════════ TAB 9: CONVERSION & ROI ═══════════════════════════
+
+with tab9:
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">💰 Conversion Probability & ROI Calculator</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Score persuasion power and estimate business impact.</p></div>', unsafe_allow_html=True)
+
+    if st.button("💰 Analyze Conversion & ROI", use_container_width=True, key="conv_btn"):
+        with st.spinner("💰 Analyzing persuasion signals..."):
+            conv = get_conversion_score(cleaned)
+            roi = get_roi_report(scores, text_stats["words"])
+
+        # Conversion Score
+        st.markdown("### 📊 Conversion Probability Score")
+        cv1, cv2 = st.columns([1, 2])
+        with cv1:
+            st.plotly_chart(create_gauge_chart(conv["overall_score"], ""), use_container_width=True)
+        with cv2:
+            st.markdown(f'<div class="glass-card"><p style="font-size:1.3rem;font-weight:700;color:{conv["color"]};">{conv["verdict"]}</p></div>', unsafe_allow_html=True)
+
+            # Component breakdown
+            for name, comp in conv["components"].items():
+                bar_width = min(100, comp["score"])
+                label_text = comp["label"]
+                st.markdown(f'<div style="margin:0.3rem 0;"><p style="margin:0;font-size:0.85rem;color:#9E9E9E;">{label_text}: {comp["score"]}/100</p><div style="background:rgba(124,77,255,0.1);border-radius:4px;height:8px;"><div style="width:{bar_width}%;height:8px;background:linear-gradient(90deg,#7C4DFF,#B388FF);border-radius:4px;"></div></div></div>', unsafe_allow_html=True)
+
+        # Signals found
+        all_signals = []
+        for name, comp in conv["components"].items():
+            for s in comp.get("signals", [])[:3]:
+                all_signals.append(s)
+            for s in comp.get("ctas", [])[:2]:
+                all_signals.append(f"CTA: {s}")
+        if all_signals:
+            st.markdown("#### 🔍 Persuasion Signals Found")
+            cols = st.columns(min(4, len(all_signals)))
+            for i, sig in enumerate(all_signals[:8]):
+                with cols[i % len(cols)]:
+                    st.markdown(f'<div class="insight-strength">✅ {sig}</div>', unsafe_allow_html=True)
+
+        # ROI Section
+        st.markdown("---")
+        st.markdown("### 📈 Content ROI Projections")
+        r1, r2, r3, r4 = st.columns(4)
+        traffic = roi["traffic"]
+        top = roi["time_on_page"]
+        conv_lift = roi["conversion"]
+        value = roi["value"]
+
+        with r1:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{traffic["low"]}–{traffic["high"]}</p><p class="metric-label">Monthly Visitors</p></div>', unsafe_allow_html=True)
+        with r2:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#B388FF;">{top["minutes"]}m</p><p class="metric-label">Avg. Time on Page</p><p style="color:#666;font-size:0.8rem;margin:0;">{top["read_percentage"]}% read</p></div>', unsafe_allow_html=True)
+        with r3:
+            lift_color = "#00E676" if conv_lift["lift_percentage"] > 0 else "#EF5350"
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:{lift_color};">+{conv_lift["lift_percentage"]}%</p><p class="metric-label">Conversion Lift</p><p style="color:#666;font-size:0.8rem;margin:0;">{conv_lift["baseline_rate"]}% → {conv_lift["estimated_rate"]}%</p></div>', unsafe_allow_html=True)
+        with r4:
+            st.markdown(f'<div class="metric-card"><p class="metric-value" style="color:#00E676;">${value["monthly_value"]}</p><p class="metric-label">Est. Monthly Value</p><p style="color:#666;font-size:0.8rem;margin:0;">${value["annual_value"]}/year</p></div>', unsafe_allow_html=True)
+
+        # Tips
+        if roi.get("tips"):
+            st.markdown("#### 💡 Optimization Tips")
+            for tip in roi["tips"]:
+                badge = "badge-green" if tip["impact"] == "Low" else "badge-yellow" if tip["impact"] == "Medium" else "badge-red"
+                st.markdown(f'<div class="insight-tip">{tip["icon"]} {tip["tip"]} <span class="badge {badge}">{tip["impact"]} Impact</span></div>', unsafe_allow_html=True)
+
+
+# ═══════════════ TAB 10: PRE-WRITE PREDICTOR ═══════════════════════
+
+with tab10:
+    st.markdown('<div class="glass-card"><h3 style="color:#B388FF;margin:0;">🔮 Pre-Write Content Predictor</h3><p style="color:#9E9E9E;margin:0.5rem 0 0 0;">Enter a topic and get predicted difficulty, tone guide, and structure — before you write.</p></div>', unsafe_allow_html=True)
+
+    topic_input = st.text_input("Enter your topic or keyword", placeholder="e.g., Machine Learning for Healthcare", key="predict_topic")
+
+    if topic_input and st.button("🔮 Predict Content Strategy", use_container_width=True, key="predict_btn"):
+        with st.spinner("🔮 Analyzing topic..."):
+            prediction = get_prediction_report(topic_input)
+
+        # Difficulty + Domain
+        p1, p2 = st.columns(2)
+        diff = prediction["difficulty"]
+        diff_color = "#EF5350" if diff >= 70 else "#FFA726" if diff >= 45 else "#00E676"
+        with p1:
+            st.markdown(f'<div class="glass-card" style="text-align:center;"><p style="font-size:3rem;font-weight:800;color:{diff_color};">{diff}/100</p><p style="color:#9E9E9E;">Writing Difficulty</p><p><span class="badge badge-purple">Domain: {prediction["domain"].title()}</span></p></div>', unsafe_allow_html=True)
+
+        rl = prediction["reading_level"]
+        with p2:
+            st.markdown(f'<div class="glass-card"><h4>{rl["emoji"]} Recommended Reading Level</h4><p><b>Grade:</b> {rl["grade"]}</p><p><b>Flesch Target:</b> {rl["flesch_target"]}</p><p><b>Audience:</b> {rl["audience"]}</p></div>', unsafe_allow_html=True)
+
+        # Tone Guide
+        tone_guide = prediction["tone"]
+        st.markdown(f'### {tone_guide.get("emoji","")} Recommended Tone: **{tone_guide["tone"]}**')
+        tips = tone_guide.get("tips", [])
+        if tips:
+            tcols = st.columns(min(4, len(tips)))
+            for i, tip in enumerate(tips):
+                with tcols[i % len(tcols)]:
+                    st.markdown(f'<div class="insight-tip">💡 {tip}</div>', unsafe_allow_html=True)
+
+        # Structure
+        structure = prediction["structure"]
+        st.markdown("### 📋 Recommended Structure")
+        s1, s2 = st.columns(2)
+        with s1:
+            st.markdown(f'<div class="glass-card"><p><b>Word Count:</b> {structure["word_count"]}</p><p><b>Paragraphs:</b> {structure["paragraphs"]}</p></div>', unsafe_allow_html=True)
+        with s2:
+            sections_html = ''.join(f'<li style="color:#B388FF;">{s}</li>' for s in structure["sections"])
+            st.markdown(f'<div class="glass-card"><b>Sections:</b><ol>{sections_html}</ol></div>', unsafe_allow_html=True)
+
+        for tip in structure.get("tips", []):
+            st.markdown(f'<div class="insight-tip">📝 {tip}</div>', unsafe_allow_html=True)
+
+
+# ═══════════════ CERTIFICATE DOWNLOAD ═════════════════════════════
+
+if "analysis_done" in st.session_state:
+    st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
+    st.markdown("### 📜 Content Readiness Certificate")
+
+    if HAS_FPDF:
+        try:
+            plag_risk = plag_report["internal"]["risk_level"]
+            ai_det_label = plag_report.get("ai_detection", {}).get("label", "N/A")
+        except (NameError, KeyError):
+            plag_risk = "Not checked"
+            ai_det_label = "Not checked"
+
+        cert_data = {
+            "title": content_title if content_title else "Untitled Content",
+            "scores": scores,
+            "word_count": text_stats["words"],
+            "tone": tone_report["tone"]["tone"],
+            "readability_label": readability_report["interpretation"]["label"],
+            "plagiarism_risk": plag_risk,
+            "ai_detection": ai_det_label,
+            "seo_intent": seo_report.get("search_intent", {}).get("primary_intent", "N/A"),
+            "conversion_score": None,
+        }
+        pdf_bytes = generate_certificate(cert_data)
+        if pdf_bytes:
+            st.download_button(
+                label="📜 Download Certificate PDF",
+                data=pdf_bytes,
+                file_name="content_readiness_certificate.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            st.info("Certificate generation requires fpdf2 library.")
+    else:
+        st.info("Install `fpdf2` to enable PDF certificate generation.")
+
+
 # ─── Footer ──────────────────────────────────────────────────────
 
 st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 st.markdown(f'<div style="text-align:center;padding:1rem;color:#666;"><p style="margin:0;">🧠 <b>AI Content Intelligence System</b> v{APP_VERSION}</p><p style="margin:0;font-size:0.8rem;">Powered by NLP + AI Embeddings • Built for Writers, Students & Businesses</p></div>', unsafe_allow_html=True)
+
