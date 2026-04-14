@@ -310,13 +310,25 @@ with st.sidebar:
 
     # Quick Demo
     st.markdown("#### 📝 Quick Demo")
-    sample_texts = {
+    _SAMPLE_TEXTS = {
         "Select a sample...": "",
         "📰 News Article": "The rapid advancement of artificial intelligence has transformed industries across the globe. From healthcare to finance, AI-powered systems are now capable of analyzing vast amounts of data and making decisions that were once the exclusive domain of human experts. However, this technological revolution has also raised important questions about ethics, employment, and the future of human creativity.\n\nRecent studies show that companies implementing AI solutions report an average productivity increase of 40 percent. Despite these gains, experts warn that the transition must be managed carefully to avoid displacing workers without providing adequate retraining opportunities.\n\nWhat does the future hold? Many researchers believe that the key lies not in replacing human workers, but in augmenting their capabilities. By combining human creativity with machine efficiency, organizations can achieve outcomes that neither could accomplish alone.",
         "🎓 Academic Abstract": "This study investigates the impact of social media usage on academic performance among university students. A cross-sectional survey was conducted with 500 participants from three major universities. The results indicate a statistically significant negative correlation between daily social media consumption exceeding four hours and grade point average. Furthermore, the analysis reveals that platforms with predominantly visual content exhibit a stronger negative association compared to text-based platforms. These findings suggest that educational institutions should develop targeted digital literacy programs to help students manage their online habits effectively while maintaining academic excellence.",
         "💼 Business Email": "Dear Team,\n\nI wanted to share some exciting news regarding our Q3 performance. We have exceeded our revenue targets by 15%, driven primarily by the successful launch of our new product line. This achievement reflects the hard work and dedication of every team member.\n\nMoving forward, I'd like to outline our priorities for Q4:\n1. Expand into two new market segments\n2. Improve customer retention by 10%\n3. Launch the updated mobile application\n\nPlease review the attached report for detailed figures. I look forward to discussing our strategy in next week's all-hands meeting.\n\nBest regards",
     }
-    selected_sample = st.selectbox("Load sample text", options=list(sample_texts.keys()))
+
+    def _on_sample_change():
+        """Callback: push selected sample text directly into the text-area widget key."""
+        chosen = st.session_state.get("sample_selector", "Select a sample...")
+        if chosen and chosen != "Select a sample...":
+            st.session_state["main_text_input"] = _SAMPLE_TEXTS[chosen]
+
+    selected_sample = st.selectbox(
+        "Load sample text",
+        options=list(_SAMPLE_TEXTS.keys()),
+        key="sample_selector",
+        on_change=_on_sample_change,
+    )
 
     st.markdown('<hr class="custom-divider">', unsafe_allow_html=True)
 
@@ -349,8 +361,7 @@ st.markdown("""
 col_input, col_title = st.columns([3, 1])
 
 with col_input:
-    default_text = sample_texts.get(selected_sample, "")
-    user_text = st.text_area("✍️ Paste your content here", value=default_text, height=200, placeholder="Enter or paste your text for analysis...", key="main_text_input")
+    user_text = st.text_area("✍️ Paste your content here", height=200, placeholder="Enter or paste your text for analysis...", key="main_text_input")
 
 with col_title:
     content_title = st.text_input("📌 Content Title (for SEO)", placeholder="Your headline...")

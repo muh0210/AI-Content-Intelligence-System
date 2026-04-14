@@ -97,4 +97,4 @@ IDEAL_WORD_COUNT_MAX = 2500   # ideal word count upper bound
 # ─── App Metadata ───────────────────────────────────────────────
 APP_TITLE = "AI Content Intelligence System"
 APP_ICON = "🧠"
-APP_VERSION = "1.0.0"
+APP_VERSION = "4.1.0"

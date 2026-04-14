@@ -266,6 +266,158 @@ class TestRewrite:
         assert "grammar" in result
 
 
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — Predictor Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.predictor import get_prediction_report
+
+class TestPredictor:
+    def test_prediction_returns_keys(self):
+        result = get_prediction_report("artificial intelligence in healthcare")
+        assert "difficulty" in result
+        assert "reading_level" in result
+        assert "tone" in result
+        assert "structure" in result
+        assert "domain" in result
+
+    def test_prediction_difficulty_range(self):
+        result = get_prediction_report("machine learning")
+        assert 0 <= result["difficulty"] <= 100
+
+    def test_prediction_structure_has_word_count(self):
+        result = get_prediction_report("content marketing strategy")
+        assert "word_count" in result["structure"]
+        assert "sections" in result["structure"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — Content DNA Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.content_dna import get_content_dna
+
+class TestContentDNA:
+    def test_dna_returns_radar(self):
+        dna = get_content_dna(SAMPLE_TEXT)
+        assert "radar" in dna
+        assert isinstance(dna["radar"], dict)
+
+    def test_dna_returns_vocabulary(self):
+        dna = get_content_dna(SAMPLE_TEXT)
+        assert "vocabulary" in dna
+        assert "ttr" in dna["vocabulary"]
+
+    def test_dna_returns_voice(self):
+        dna = get_content_dna(SAMPLE_TEXT)
+        assert "voice" in dna
+        assert "active_pct" in dna["voice"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — Emotions Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.emotions import get_emotion_report
+
+class TestEmotions:
+    def test_emotion_report_keys(self):
+        emo = get_emotion_report(SAMPLE_TEXT, goal="trust")
+        assert "overall" in emo
+        assert "alignment" in emo
+
+    def test_emotion_overall_has_dominant(self):
+        emo = get_emotion_report(SAMPLE_TEXT, goal="trust")
+        assert "dominant" in emo["overall"]
+
+    def test_emotion_paragraphs(self):
+        emo = get_emotion_report(SAMPLE_TEXT, goal="trust")
+        assert "paragraphs" in emo
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — Conversion Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.conversion import get_conversion_score
+
+class TestConversion:
+    def test_conversion_score_range(self):
+        conv = get_conversion_score(SAMPLE_TEXT)
+        assert 0 <= conv["overall_score"] <= 100
+
+    def test_conversion_has_components(self):
+        conv = get_conversion_score(SAMPLE_TEXT)
+        assert "components" in conv
+        assert isinstance(conv["components"], dict)
+
+    def test_conversion_has_verdict(self):
+        conv = get_conversion_score(SAMPLE_TEXT)
+        assert "verdict" in conv
+        assert "color" in conv
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — ROI Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.roi import get_roi_report
+
+class TestROI:
+    def test_roi_returns_traffic(self):
+        scores = compute_content_score(SAMPLE_TEXT)
+        roi = get_roi_report(scores, 500)
+        assert "traffic" in roi
+        assert "low" in roi["traffic"]
+        assert "high" in roi["traffic"]
+
+    def test_roi_returns_value(self):
+        scores = compute_content_score(SAMPLE_TEXT)
+        roi = get_roi_report(scores, 500)
+        assert "value" in roi
+        assert "monthly_value" in roi["value"]
+
+    def test_roi_returns_tips(self):
+        scores = compute_content_score(SAMPLE_TEXT)
+        roi = get_roi_report(scores, 500)
+        assert "tips" in roi
+        assert isinstance(roi["tips"], list)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# V4 Modules — Certificate Tests
+# ═══════════════════════════════════════════════════════════════════
+
+from utils.certificate import generate_certificate, HAS_FPDF
+
+class TestCertificate:
+    def test_certificate_generates_bytes(self):
+        if not HAS_FPDF:
+            return  # Skip if fpdf2 not installed
+        cert_data = {
+            "title": "Test Article",
+            "scores": {"overall": 75, "readability": 80, "engagement": 70, "clarity": 72, "seo": 65},
+            "word_count": 500,
+            "tone": "Positive",
+            "readability_label": "Easy",
+            "plagiarism_risk": "Low",
+            "ai_detection": "Likely Human",
+            "seo_intent": "Informational",
+            "conversion_score": None,
+        }
+        result = generate_certificate(cert_data)
+        assert result is not None
+        assert isinstance(result, bytes)
+        assert len(result) > 100
+
+    def test_certificate_without_fpdf_returns_none(self):
+        # Verify graceful fallback behavior
+        cert_data = {"title": "Test", "scores": {"overall": 50}}
+        if not HAS_FPDF:
+            result = generate_certificate(cert_data)
+            assert result is None
+
+
 if __name__ == "__main__":
     import pytest
     pytest.main([__file__, "-v", "--tb=short"])
