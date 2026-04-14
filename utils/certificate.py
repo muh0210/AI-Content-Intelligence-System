@@ -71,7 +71,7 @@ class CertificatePDF(FPDF):
         self.set_y(-20)
         self.set_font("Helvetica", "I", 7)
         self.set_text_color(80, 80, 100)
-        self.cell(0, 5, f"AI Content Intelligence System v4.0  |  Certificate ID: CIS-{datetime.now().strftime('%Y%m%d%H%M%S')}", 0, 1, "C")
+        self.cell(0, 5, f"AI Content Intelligence System v4.1  |  Certificate ID: CIS-{datetime.now().strftime('%Y%m%d%H%M%S')}", 0, 1, "C")
         self.cell(0, 5, f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}  |  This certificate is auto-generated", 0, 0, "C")
 
 
@@ -344,16 +344,16 @@ def generate_certificate(data):
             conv = data["conversion_score"]
             _draw_metric_row(pdf, "Conversion Probability", f"{conv}/100", value_color=_score_color(conv))
 
-        # ═══ WATERMARK TEXT (subtle diagonal) ═══
-        pdf.set_font("Helvetica", "B", 60)
-        pdf.set_text_color(30, 32, 45)
-        pdf.rotate(35, 105, 200)
-        pdf.text(40, 220, "CERTIFIED")
-        pdf.rotate(0)
+        # ═══ WATERMARK TEXT (subtle, no rotation for PDF viewer compatibility) ═══
+        pdf.set_font("Helvetica", "B", 50)
+        pdf.set_text_color(25, 27, 38)  # Nearly invisible on dark bg
+        pdf.text(35, 180, "CERTIFIED")
 
-        # Return as bytes
-        pdf_bytes = pdf.output()
-        return bytes(pdf_bytes)
+        # Return as bytes via BytesIO for reliable streaming
+        buf = io.BytesIO()
+        pdf.output(buf)
+        buf.seek(0)
+        return buf.getvalue()
 
     except Exception as e:
         # Fallback: return None if any generation error

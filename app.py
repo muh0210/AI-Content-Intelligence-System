@@ -531,9 +531,11 @@ with tab1:
         }
         pdf_bytes = generate_certificate(cert_data)
         if pdf_bytes:
+            import io as _io
+            pdf_buffer = _io.BytesIO(pdf_bytes)
             st.download_button(
                 label="📜 Download Content Readiness Certificate (PDF)",
-                data=pdf_bytes,
+                data=pdf_buffer,
                 file_name="content_readiness_certificate.pdf",
                 mime="application/pdf",
                 use_container_width=True,
